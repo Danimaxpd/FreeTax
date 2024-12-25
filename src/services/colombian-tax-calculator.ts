@@ -1,9 +1,9 @@
 import Decimal from 'decimal.js';
 import { TaxDetails } from '../types/tax.types.js';
-import { UVT_2025, TAX_BRACKETS } from '../constants/tax-brackets.js';
+import { UVT_VALUES, TAX_BRACKETS } from '../constants/tax-brackets.js';
 
-export class ColombianTaxCalculator2025 { 
-  private readonly uvt2025: Decimal = new Decimal(UVT_2025);
+export class ColombianTaxCalculator {
+  private readonly uvt: Decimal;
 
   private readonly monthsInYear: number = 12;
 
@@ -13,10 +13,30 @@ export class ColombianTaxCalculator2025 {
 
   private readonly contributionBase: Decimal = new Decimal(0.4); // 40% of income
 
-  private readonly minimumWage2025: Decimal = new Decimal(1300000); // Projected minimum wage 2025
+  private readonly minimumWage: Decimal;
+
+  constructor(year: number) {
+    const uvtValue = UVT_VALUES[year];
+    if (uvtValue === undefined) {
+      throw new Error(`UVT value for year ${year} is not defined.`);
+    }
+    this.uvt = new Decimal(uvtValue);
+    this.minimumWage = new Decimal(this.getMinimumWage(year));
+  }
+
+  private getMinimumWage(year: number): number {
+    const minimumWages: { [year: number]: number } = {
+      2025: 1300000, // Projected minimum wage for 2025
+    };
+    const wage = minimumWages[year];
+    if (wage === undefined) {
+      throw new Error(`Minimum wage for year ${year} is not defined.`);
+    }
+    return wage;
+  }
 
   private calculateUvtValue(income: Decimal): Decimal {
-    return income.dividedBy(this.uvt2025);
+    return income.dividedBy(this.uvt);
   }
 
   private convertMonthlyToAnnual(monthlyIncome: number): Decimal {
@@ -25,7 +45,7 @@ export class ColombianTaxCalculator2025 {
 
   private calculateIBC(monthlyIncome: Decimal): Decimal {
     const ibc = monthlyIncome.times(this.contributionBase);
-    return Decimal.max(ibc, this.minimumWage2025);
+    return Decimal.max(ibc, this.minimumWage);
   }
 
   private calculateHealthContribution(monthlyIncome: Decimal): Decimal {
@@ -39,18 +59,26 @@ export class ColombianTaxCalculator2025 {
   }
 
   public calculateTax(monthlyIncome: number): TaxDetails {
+    console.log(`Calculating tax for monthly income: ${monthlyIncome}`);
     const monthlyIncomeDecimal = new Decimal(monthlyIncome);
     const annualIncome = this.convertMonthlyToAnnual(monthlyIncome);
+    console.log(`Annual income: ${annualIncome.toNumber()}`);
 
     // Calculate monthly contributions
     const monthlyHealth = this.calculateHealthContribution(monthlyIncomeDecimal);
+    console.log(`Monthly health contribution: ${monthlyHealth.toNumber()}`);
     const monthlyPension = this.calculatePensionContribution(monthlyIncomeDecimal);
+    console.log(`Monthly pension contribution: ${monthlyPension.toNumber()}`);
     const annualContributions = monthlyHealth.plus(monthlyPension).times(this.monthsInYear);
+    console.log(`Annual contributions: ${annualContributions.toNumber()}`);
 
     // Calculate taxable income
     const presumptiveCosts = annualIncome.times(0.25);
+    console.log(`Presumptive costs (25% of annual income): ${presumptiveCosts.toNumber()}`);
     const taxableIncome = annualIncome.minus(presumptiveCosts).minus(annualContributions);
+    console.log(`Taxable income: ${taxableIncome.toNumber()}`);
     const taxableIncomeUvt = this.calculateUvtValue(taxableIncome);
+    console.log(`Taxable income in UVT: ${taxableIncomeUvt.toNumber()}`);
 
     let tax = new Decimal(0);
 
@@ -60,15 +88,22 @@ export class ColombianTaxCalculator2025 {
           taxableIncomeUvt.minus(lowerLimit),
           new Decimal(upperLimit).minus(lowerLimit),
         );
-        const taxForBracket = taxableAmount.times(rate).dividedBy(100).times(this.uvt2025);
+        const taxForBracket = taxableAmount.times(rate).dividedBy(100).times(this.uvt);
         tax = tax.plus(taxForBracket);
+        console.log(
+          `Tax for bracket ${lowerLimit}-${upperLimit} UVT at rate ${rate}%: ${taxForBracket.toNumber()}`,
+        );
       }
     });
 
     const monthlyTax = tax.dividedBy(this.monthsInYear);
+    console.log(`Monthly tax amount: ${monthlyTax.toNumber()}`);
     const effectiveTaxRate = tax.dividedBy(annualIncome).times(100);
+    console.log(`Effective tax rate: ${effectiveTaxRate.toNumber()}%`);
     const monthlyTotalDeductions = monthlyHealth.plus(monthlyPension).plus(monthlyTax);
+    console.log(`Total monthly deductions: ${monthlyTotalDeductions.toNumber()}`);
     const monthlyNetIncome = monthlyIncomeDecimal.minus(monthlyTotalDeductions);
+    console.log(`Monthly net income: ${monthlyNetIncome.toNumber()}`);
 
     return {
       monthlyIncome: monthlyIncomeDecimal,
@@ -88,7 +123,7 @@ export class ColombianTaxCalculator2025 {
   }
 
   public printTaxReport(taxDetails: TaxDetails): void {
-    console.log('\n=== REPORTE DE IMPUESTOS 2025 ===');
+    console.log('\n=== REPORTE DE IMPUESTOS ===');
     console.log('\n--- Valores Mensuales ---');
     console.log(
       `Ingreso Mensual Bruto: $${taxDetails.monthlyIncome.toNumber().toLocaleString('es-CO')} COP`,
