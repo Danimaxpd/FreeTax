@@ -1,5 +1,6 @@
 # Dependencies
 node_modules/
+npm-debug.log
 
 # Build
 dist/
@@ -18,6 +19,8 @@ dist/
 logs/
 *.log
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # Coverage
 coverage/
@@ -25,3 +28,14 @@ coverage/
 # OS
 .DS_Store
 Thumbs.db 
+
+# IDE specific files
+.vscode/
+.idea/
+.DS_Store
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
