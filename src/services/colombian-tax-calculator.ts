@@ -2,11 +2,18 @@ import Decimal from 'decimal.js';
 import { TaxDetails } from '../types/tax.types.js';
 import { UVT_2025, TAX_BRACKETS } from '../constants/tax-brackets.js';
 
-export class ColombianTaxCalculator2025 {
-
+export class ColombianTaxCalculator2025 { 
   private readonly uvt2025: Decimal = new Decimal(UVT_2025);
 
   private readonly monthsInYear: number = 12;
+
+  private readonly healthRate: Decimal = new Decimal(0.125); // 12.5%
+
+  private readonly pensionRate: Decimal = new Decimal(0.16); // 16%
+
+  private readonly contributionBase: Decimal = new Decimal(0.4); // 40% of income
+
+  private readonly minimumWage2025: Decimal = new Decimal(1300000); // Projected minimum wage 2025
 
   private calculateUvtValue(income: Decimal): Decimal {
     return income.dividedBy(this.uvt2025);
@@ -16,10 +23,33 @@ export class ColombianTaxCalculator2025 {
     return new Decimal(monthlyIncome).times(this.monthsInYear);
   }
 
+  private calculateIBC(monthlyIncome: Decimal): Decimal {
+    const ibc = monthlyIncome.times(this.contributionBase);
+    return Decimal.max(ibc, this.minimumWage2025);
+  }
+
+  private calculateHealthContribution(monthlyIncome: Decimal): Decimal {
+    const ibc = this.calculateIBC(monthlyIncome);
+    return ibc.times(this.healthRate);
+  }
+
+  private calculatePensionContribution(monthlyIncome: Decimal): Decimal {
+    const ibc = this.calculateIBC(monthlyIncome);
+    return ibc.times(this.pensionRate);
+  }
+
   public calculateTax(monthlyIncome: number): TaxDetails {
+    const monthlyIncomeDecimal = new Decimal(monthlyIncome);
     const annualIncome = this.convertMonthlyToAnnual(monthlyIncome);
+
+    // Calculate monthly contributions
+    const monthlyHealth = this.calculateHealthContribution(monthlyIncomeDecimal);
+    const monthlyPension = this.calculatePensionContribution(monthlyIncomeDecimal);
+    const annualContributions = monthlyHealth.plus(monthlyPension).times(this.monthsInYear);
+
+    // Calculate taxable income
     const presumptiveCosts = annualIncome.times(0.25);
-    const taxableIncome = annualIncome.minus(presumptiveCosts);
+    const taxableIncome = annualIncome.minus(presumptiveCosts).minus(annualContributions);
     const taxableIncomeUvt = this.calculateUvtValue(taxableIncome);
 
     let tax = new Decimal(0);
@@ -37,9 +67,11 @@ export class ColombianTaxCalculator2025 {
 
     const monthlyTax = tax.dividedBy(this.monthsInYear);
     const effectiveTaxRate = tax.dividedBy(annualIncome).times(100);
+    const monthlyTotalDeductions = monthlyHealth.plus(monthlyPension).plus(monthlyTax);
+    const monthlyNetIncome = monthlyIncomeDecimal.minus(monthlyTotalDeductions);
 
     return {
-      monthlyIncome: new Decimal(monthlyIncome),
+      monthlyIncome: monthlyIncomeDecimal,
       annualIncome,
       monthlyPresumptiveCosts: presumptiveCosts.dividedBy(this.monthsInYear),
       annualPresumptiveCosts: presumptiveCosts,
@@ -48,6 +80,10 @@ export class ColombianTaxCalculator2025 {
       monthlyTaxAmount: monthlyTax,
       annualTaxAmount: tax,
       effectiveTaxRate,
+      monthlyHealth,
+      monthlyPension,
+      monthlyTotalDeductions,
+      monthlyNetIncome,
     };
   }
 
@@ -55,10 +91,35 @@ export class ColombianTaxCalculator2025 {
     console.log('\n=== REPORTE DE IMPUESTOS 2025 ===');
     console.log('\n--- Valores Mensuales ---');
     console.log(
-      `Salario Mensual: $${taxDetails.monthlyIncome.toNumber().toLocaleString('es-CO')} COP`,
+      `Ingreso Mensual Bruto: $${taxDetails.monthlyIncome.toNumber().toLocaleString('es-CO')} COP`,
     );
     console.log(
-      `Costos Presuntivos Mensuales (25%): $${taxDetails.monthlyPresumptiveCosts
+      `Aportes a Salud (12.5% del IBC): $${taxDetails.monthlyHealth
+        .toNumber()
+        .toLocaleString('es-CO')} COP`,
+    );
+    console.log(
+      `Aportes a Pensión (16% del IBC): $${taxDetails.monthlyPension
+        .toNumber()
+        .toLocaleString('es-CO')} COP`,
+    );
+    console.log(
+      `Retención en la Fuente Mensual: $${taxDetails.monthlyTaxAmount
+        .toNumber()
+        .toLocaleString('es-CO')} COP`,
+    );
+    console.log(
+      `Total Deducciones Mensuales: $${taxDetails.monthlyTotalDeductions
+        .toNumber()
+        .toLocaleString('es-CO')} COP`,
+    );
+    console.log(
+      `Ingreso Neto Mensual: $${taxDetails.monthlyNetIncome.toNumber().toLocaleString('es-CO')} COP`,
+    );
+
+    console.log('\n--- Base Gravable ---');
+    console.log(
+      `Costos Presuntivos (25%): $${taxDetails.monthlyPresumptiveCosts
         .toNumber()
         .toLocaleString('es-CO')} COP`,
     );
@@ -67,32 +128,6 @@ export class ColombianTaxCalculator2025 {
         .toNumber()
         .toLocaleString('es-CO')} COP`,
     );
-    console.log(
-      `Impuesto Mensual a Pagar: $${taxDetails.monthlyTaxAmount
-        .toNumber()
-        .toLocaleString('es-CO')} COP`,
-    );
-
-    console.log('\n--- Valores Anuales ---');
-    console.log(
-      `Ingreso Anual: $${taxDetails.annualIncome.toNumber().toLocaleString('es-CO')} COP`,
-    );
-    console.log(
-      `Costos Presuntivos Anuales (25%): $${taxDetails.annualPresumptiveCosts
-        .toNumber()
-        .toLocaleString('es-CO')} COP`,
-    );
-    console.log(
-      `Base Gravable Anual: $${taxDetails.annualTaxableIncome
-        .toNumber()
-        .toLocaleString('es-CO')} COP`,
-    );
-    console.log(
-      `Impuesto Anual a Pagar: $${taxDetails.annualTaxAmount
-        .toNumber()
-        .toLocaleString('es-CO')} COP`,
-    );
-    console.log(`Tasa Efectiva de Impuestos: ${taxDetails.effectiveTaxRate.toFixed(2)}%`);
     console.log('================================');
   }
 }

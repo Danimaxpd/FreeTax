@@ -10,6 +10,10 @@ export interface TaxDetails {
   monthlyTaxAmount: Decimal;
   annualTaxAmount: Decimal;
   effectiveTaxRate: Decimal;
+  monthlyHealth: Decimal;
+  monthlyPension: Decimal;
+  monthlyTotalDeductions: Decimal;
+  monthlyNetIncome: Decimal;
 }
 
 export interface TaxBracket {
