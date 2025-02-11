@@ -1,38 +1,38 @@
 import Decimal from 'decimal.js';
 import { TaxDetails } from '../types/tax.types.js';
-import { UVT_VALUES, TAX_BRACKETS } from '../constants/tax-brackets.js';
+import { TAX_VALUES, TAX_BRACKETS, ValidTaxYear } from '../constants/tax-values.js';
+import { logger } from '../utils/logger.js';
 
 export class ColombianTaxCalculator {
   private readonly uvt: Decimal;
 
   private readonly monthsInYear: number = 12;
 
-  private readonly healthRate: Decimal = new Decimal(0.125); // 12.5%
+  private readonly healthRate: Decimal;
 
-  private readonly pensionRate: Decimal = new Decimal(0.16); // 16%
+  private readonly pensionRate: Decimal;
 
-  private readonly contributionBase: Decimal = new Decimal(0.4); // 40% of income
+  private readonly contributionBase: Decimal;
+
+  private readonly presumptiveCostsRate: Decimal;
 
   private readonly minimumWage: Decimal;
 
-  constructor(year: number) {
-    const uvtValue = UVT_VALUES[year];
-    if (uvtValue === undefined) {
-      throw new Error(`UVT value for year ${year} is not defined.`);
-    }
-    this.uvt = new Decimal(uvtValue);
-    this.minimumWage = new Decimal(this.getMinimumWage(year));
-  }
+  private readonly year: ValidTaxYear;
 
-  private getMinimumWage(year: number): number {
-    const minimumWages: { [year: number]: number } = {
-      2025: 1300000, // Projected minimum wage for 2025
-    };
-    const wage = minimumWages[year];
-    if (wage === undefined) {
-      throw new Error(`Minimum wage for year ${year} is not defined.`);
+  constructor(year: ValidTaxYear) {
+    this.year = year;
+    const values = TAX_VALUES[year];
+    if (!values) {
+      throw new Error(`Tax values for year ${year} are not defined.`);
     }
-    return wage;
+
+    this.uvt = new Decimal(values.uvt);
+    this.minimumWage = new Decimal(values.minimumWage);
+    this.healthRate = new Decimal(values.healthRate);
+    this.pensionRate = new Decimal(values.pensionRate);
+    this.contributionBase = new Decimal(values.contributionBase);
+    this.presumptiveCostsRate = new Decimal(values.presumptiveCostsRate);
   }
 
   private calculateUvtValue(income: Decimal): Decimal {
@@ -59,26 +59,26 @@ export class ColombianTaxCalculator {
   }
 
   public calculateTax(monthlyIncome: number): TaxDetails {
-    console.log(`Calculating tax for monthly income: ${monthlyIncome}`);
+    logger.info(`Calculating tax for monthly income: ${monthlyIncome}`);
     const monthlyIncomeDecimal = new Decimal(monthlyIncome);
     const annualIncome = this.convertMonthlyToAnnual(monthlyIncome);
-    console.log(`Annual income: ${annualIncome.toNumber()}`);
+    logger.info(`Annual income: ${annualIncome.toNumber()}`);
 
     // Calculate monthly contributions
     const monthlyHealth = this.calculateHealthContribution(monthlyIncomeDecimal);
-    console.log(`Monthly health contribution: ${monthlyHealth.toNumber()}`);
+    logger.info(`Monthly health contribution: ${monthlyHealth.toNumber()}`);
     const monthlyPension = this.calculatePensionContribution(monthlyIncomeDecimal);
-    console.log(`Monthly pension contribution: ${monthlyPension.toNumber()}`);
+    logger.info(`Monthly pension contribution: ${monthlyPension.toNumber()}`);
     const annualContributions = monthlyHealth.plus(monthlyPension).times(this.monthsInYear);
-    console.log(`Annual contributions: ${annualContributions.toNumber()}`);
+    logger.info(`Annual contributions: ${annualContributions.toNumber()}`);
 
     // Calculate taxable income
-    const presumptiveCosts = annualIncome.times(0.25);
-    console.log(`Presumptive costs (25% of annual income): ${presumptiveCosts.toNumber()}`);
+    const presumptiveCosts = annualIncome.times(this.presumptiveCostsRate);
+    logger.info(`Presumptive costs (25% of annual income): ${presumptiveCosts.toNumber()}`);
     const taxableIncome = annualIncome.minus(presumptiveCosts).minus(annualContributions);
-    console.log(`Taxable income: ${taxableIncome.toNumber()}`);
+    logger.info(`Taxable income: ${taxableIncome.toNumber()}`);
     const taxableIncomeUvt = this.calculateUvtValue(taxableIncome);
-    console.log(`Taxable income in UVT: ${taxableIncomeUvt.toNumber()}`);
+    logger.info(`Taxable income in UVT: ${taxableIncomeUvt.toNumber()}`);
 
     let tax = new Decimal(0);
 
@@ -90,20 +90,20 @@ export class ColombianTaxCalculator {
         );
         const taxForBracket = taxableAmount.times(rate).dividedBy(100).times(this.uvt);
         tax = tax.plus(taxForBracket);
-        console.log(
+        logger.info(
           `Tax for bracket ${lowerLimit}-${upperLimit} UVT at rate ${rate}%: ${taxForBracket.toNumber()}`,
         );
       }
     });
 
     const monthlyTax = tax.dividedBy(this.monthsInYear);
-    console.log(`Monthly tax amount: ${monthlyTax.toNumber()}`);
+    logger.info(`Monthly tax amount: ${monthlyTax.toNumber()}`);
     const effectiveTaxRate = tax.dividedBy(annualIncome).times(100);
-    console.log(`Effective tax rate: ${effectiveTaxRate.toNumber()}%`);
+    logger.info(`Effective tax rate: ${effectiveTaxRate.toNumber()}%`);
     const monthlyTotalDeductions = monthlyHealth.plus(monthlyPension).plus(monthlyTax);
-    console.log(`Total monthly deductions: ${monthlyTotalDeductions.toNumber()}`);
+    logger.info(`Total monthly deductions: ${monthlyTotalDeductions.toNumber()}`);
     const monthlyNetIncome = monthlyIncomeDecimal.minus(monthlyTotalDeductions);
-    console.log(`Monthly net income: ${monthlyNetIncome.toNumber()}`);
+    logger.info(`Monthly net income: ${monthlyNetIncome.toNumber()}`);
 
     return {
       monthlyIncome: monthlyIncomeDecimal,
@@ -123,46 +123,46 @@ export class ColombianTaxCalculator {
   }
 
   public printTaxReport(taxDetails: TaxDetails): void {
-    console.log('\n=== REPORTE DE IMPUESTOS ===');
-    console.log('\n--- Valores Mensuales ---');
-    console.log(
+    logger.info('\n=== REPORTE DE IMPUESTOS ===');
+    logger.info('\n--- Valores Mensuales ---');
+    logger.info(
       `Ingreso Mensual Bruto: $${taxDetails.monthlyIncome.toNumber().toLocaleString('es-CO')} COP`,
     );
-    console.log(
+    logger.info(
       `Aportes a Salud (12.5% del IBC): $${taxDetails.monthlyHealth
         .toNumber()
         .toLocaleString('es-CO')} COP`,
     );
-    console.log(
+    logger.info(
       `Aportes a Pensión (16% del IBC): $${taxDetails.monthlyPension
         .toNumber()
         .toLocaleString('es-CO')} COP`,
     );
-    console.log(
+    logger.info(
       `Retención en la Fuente Mensual: $${taxDetails.monthlyTaxAmount
         .toNumber()
         .toLocaleString('es-CO')} COP`,
     );
-    console.log(
+    logger.info(
       `Total Deducciones Mensuales: $${taxDetails.monthlyTotalDeductions
         .toNumber()
         .toLocaleString('es-CO')} COP`,
     );
-    console.log(
+    logger.info(
       `Ingreso Neto Mensual: $${taxDetails.monthlyNetIncome.toNumber().toLocaleString('es-CO')} COP`,
     );
 
-    console.log('\n--- Base Gravable ---');
-    console.log(
+    logger.info('\n--- Base Gravable ---');
+    logger.info(
       `Costos Presuntivos (25%): $${taxDetails.monthlyPresumptiveCosts
         .toNumber()
         .toLocaleString('es-CO')} COP`,
     );
-    console.log(
+    logger.info(
       `Base Gravable Mensual: $${taxDetails.monthlyTaxableIncome
         .toNumber()
         .toLocaleString('es-CO')} COP`,
     );
-    console.log('================================');
+    logger.info('================================');
   }
 }

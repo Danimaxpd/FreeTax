@@ -23,6 +23,7 @@ module.exports = {
     ],
     '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     'class-methods-use-this': 'off',
+    'no-console': 'error',
   },
   settings: {
     'import/resolver': {

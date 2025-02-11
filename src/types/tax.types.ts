@@ -16,6 +16,15 @@ export interface TaxDetails {
   monthlyNetIncome: Decimal;
 }
 
+export interface TaxYearValues {
+  uvt: number;
+  minimumWage: number;
+  healthRate: number;
+  pensionRate: number;
+  contributionBase: number;
+  presumptiveCostsRate: number;
+}
+
 export interface TaxBracket {
   lowerLimit: number;
   upperLimit: number;
