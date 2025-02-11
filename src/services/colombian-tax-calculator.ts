@@ -59,26 +59,42 @@ export class ColombianTaxCalculator {
   }
 
   public calculateTax(monthlyIncome: number): TaxDetails {
-    logger.info(`Calculating tax for monthly income: ${monthlyIncome}`);
     const monthlyIncomeDecimal = new Decimal(monthlyIncome);
     const annualIncome = this.convertMonthlyToAnnual(monthlyIncome);
-    logger.info(`Annual income: ${annualIncome.toNumber()}`);
+    logger.debug(`Annual income: ${annualIncome.toNumber()}`);
 
-    // Calculate monthly contributions
+    // Calculate IBC and contributions
+    const ibc = this.calculateIBC(monthlyIncomeDecimal);
+    logger.info(
+      `\nIBC:\n${monthlyIncomeDecimal.toNumber().toLocaleString('es-CO')} × ${this.contributionBase.times(100).toNumber()}% = ${ibc.toNumber().toLocaleString('es-CO')} COP`,
+    );
+
     const monthlyHealth = this.calculateHealthContribution(monthlyIncomeDecimal);
-    logger.info(`Monthly health contribution: ${monthlyHealth.toNumber()}`);
-    const monthlyPension = this.calculatePensionContribution(monthlyIncomeDecimal);
-    logger.info(`Monthly pension contribution: ${monthlyPension.toNumber()}`);
-    const annualContributions = monthlyHealth.plus(monthlyPension).times(this.monthsInYear);
-    logger.info(`Annual contributions: ${annualContributions.toNumber()}`);
+    logger.info(
+      `\nAporte a Salud (${this.healthRate.times(100).toNumber()}% del IBC):\n${ibc.toNumber().toLocaleString('es-CO')} × ${this.healthRate.times(100).toNumber()}% = ${monthlyHealth.toNumber().toLocaleString('es-CO')} COP`,
+    );
 
-    // Calculate taxable income
+    const monthlyPension = this.calculatePensionContribution(monthlyIncomeDecimal);
+    logger.info(
+      `\nAporte a Pensión (${this.pensionRate.times(100).toNumber()}% del IBC):\n${ibc.toNumber().toLocaleString('es-CO')} × ${this.pensionRate.times(100).toNumber()}% = ${monthlyPension.toNumber().toLocaleString('es-CO')} COP`,
+    );
+
+    const monthlyTotalDeductions = monthlyHealth.plus(monthlyPension);
+    logger.info(
+      `\nTotal Aporte Mensual:\n${monthlyHealth.toNumber().toLocaleString('es-CO')} + ${monthlyPension.toNumber().toLocaleString('es-CO')} = ${monthlyTotalDeductions.toNumber().toLocaleString('es-CO')} COP\n`,
+    );
+
+    // Move the rest of the calculations to debug level
+    const annualContributions = monthlyTotalDeductions.times(this.monthsInYear);
+    logger.debug(`Annual contributions: ${annualContributions.toNumber()}`);
+
     const presumptiveCosts = annualIncome.times(this.presumptiveCostsRate);
-    logger.info(`Presumptive costs (25% of annual income): ${presumptiveCosts.toNumber()}`);
+    logger.debug(`Presumptive costs: ${presumptiveCosts.toNumber()}`);
+
     const taxableIncome = annualIncome.minus(presumptiveCosts).minus(annualContributions);
-    logger.info(`Taxable income: ${taxableIncome.toNumber()}`);
+    logger.debug(`Taxable income: ${taxableIncome.toNumber()}`);
     const taxableIncomeUvt = this.calculateUvtValue(taxableIncome);
-    logger.info(`Taxable income in UVT: ${taxableIncomeUvt.toNumber()}`);
+    logger.debug(`Taxable income in UVT: ${taxableIncomeUvt.toNumber()}`);
 
     let tax = new Decimal(0);
 
@@ -90,20 +106,18 @@ export class ColombianTaxCalculator {
         );
         const taxForBracket = taxableAmount.times(rate).dividedBy(100).times(this.uvt);
         tax = tax.plus(taxForBracket);
-        logger.info(
+        logger.debug(
           `Tax for bracket ${lowerLimit}-${upperLimit} UVT at rate ${rate}%: ${taxForBracket.toNumber()}`,
         );
       }
     });
 
     const monthlyTax = tax.dividedBy(this.monthsInYear);
-    logger.info(`Monthly tax amount: ${monthlyTax.toNumber()}`);
+    logger.debug(`Monthly tax amount: ${monthlyTax.toNumber()}`);
     const effectiveTaxRate = tax.dividedBy(annualIncome).times(100);
-    logger.info(`Effective tax rate: ${effectiveTaxRate.toNumber()}%`);
-    const monthlyTotalDeductions = monthlyHealth.plus(monthlyPension).plus(monthlyTax);
-    logger.info(`Total monthly deductions: ${monthlyTotalDeductions.toNumber()}`);
+    logger.debug(`Effective tax rate: ${effectiveTaxRate.toNumber()}%`);
     const monthlyNetIncome = monthlyIncomeDecimal.minus(monthlyTotalDeductions);
-    logger.info(`Monthly net income: ${monthlyNetIncome.toNumber()}`);
+    logger.debug(`Monthly net income: ${monthlyNetIncome.toNumber()}`);
 
     return {
       monthlyIncome: monthlyIncomeDecimal,
@@ -123,46 +137,47 @@ export class ColombianTaxCalculator {
   }
 
   public printTaxReport(taxDetails: TaxDetails): void {
-    logger.info('\n=== REPORTE DE IMPUESTOS ===');
-    logger.info('\n--- Valores Mensuales ---');
-    logger.info(
+    // Move all the detailed reporting to debug level
+    logger.debug('\n=== REPORTE DE IMPUESTOS DETALLADO ===');
+    logger.debug('\n--- Valores Mensuales ---');
+    logger.debug(
       `Ingreso Mensual Bruto: $${taxDetails.monthlyIncome.toNumber().toLocaleString('es-CO')} COP`,
     );
-    logger.info(
+    logger.debug(
       `Aportes a Salud (12.5% del IBC): $${taxDetails.monthlyHealth
         .toNumber()
         .toLocaleString('es-CO')} COP`,
     );
-    logger.info(
+    logger.debug(
       `Aportes a Pensión (16% del IBC): $${taxDetails.monthlyPension
         .toNumber()
         .toLocaleString('es-CO')} COP`,
     );
-    logger.info(
+    logger.debug(
       `Retención en la Fuente Mensual: $${taxDetails.monthlyTaxAmount
         .toNumber()
         .toLocaleString('es-CO')} COP`,
     );
-    logger.info(
+    logger.debug(
       `Total Deducciones Mensuales: $${taxDetails.monthlyTotalDeductions
         .toNumber()
         .toLocaleString('es-CO')} COP`,
     );
-    logger.info(
+    logger.debug(
       `Ingreso Neto Mensual: $${taxDetails.monthlyNetIncome.toNumber().toLocaleString('es-CO')} COP`,
     );
 
-    logger.info('\n--- Base Gravable ---');
-    logger.info(
+    logger.debug('\n--- Base Gravable ---');
+    logger.debug(
       `Costos Presuntivos (25%): $${taxDetails.monthlyPresumptiveCosts
         .toNumber()
         .toLocaleString('es-CO')} COP`,
     );
-    logger.info(
+    logger.debug(
       `Base Gravable Mensual: $${taxDetails.monthlyTaxableIncome
         .toNumber()
         .toLocaleString('es-CO')} COP`,
     );
-    logger.info('================================');
+    logger.debug('================================');
   }
 }

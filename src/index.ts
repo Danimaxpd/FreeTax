@@ -1,5 +1,6 @@
 import promptSync from 'prompt-sync';
 import { ColombianTaxCalculator } from './services/colombian-tax-calculator.js';
+import { logger } from './utils/logger.js';
 
 const prompt = promptSync({ sigint: true });
 const calculator = new ColombianTaxCalculator(2025); // TODO: Update with an env variable
@@ -10,14 +11,14 @@ function isValidNumber(input: string): boolean {
 }
 
 function main() {
-  console.log('Calculadora de Impuestos Colombia 2025');
-  console.log('=====================================');
+  logger.info('Calculadora de Impuestos Colombia 2025');
+  logger.info('=====================================');
 
   let monthlyIncome: string;
   do {
     monthlyIncome = prompt('Ingrese su salario mensual (COP): ');
     if (!isValidNumber(monthlyIncome)) {
-      console.log('Por favor ingrese un valor numérico válido mayor a 0');
+      logger.error('Por favor ingrese un valor numérico válido mayor a 0');
     }
   } while (!isValidNumber(monthlyIncome));
 
