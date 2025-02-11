@@ -3,7 +3,7 @@ import { ColombianTaxCalculator } from './services/colombian-tax-calculator.js';
 import { logger } from './utils/logger.js';
 
 const prompt = promptSync({ sigint: true });
-const calculator = new ColombianTaxCalculator(2025); // TODO: Update with an env variable
+const calculator = new ColombianTaxCalculator(2025);
 
 function isValidNumber(input: string): boolean {
   const num = Number(input);

@@ -22,7 +22,7 @@ export class ColombianTaxCalculator {
 
   constructor(year: ValidTaxYear) {
     this.year = year;
-    const values = TAX_VALUES[year];
+    const values = TAX_VALUES[this.year];
     if (!values) {
       throw new Error(`Tax values for year ${year} are not defined.`);
     }
