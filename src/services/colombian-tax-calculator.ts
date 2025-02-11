@@ -1,3 +1,4 @@
+import Table from 'tty-table';
 import Decimal from 'decimal.js';
 import { TaxDetails } from '../types/tax.types.js';
 import { TAX_VALUES, TAX_BRACKETS, ValidTaxYear } from '../constants/tax-values.js';
@@ -83,6 +84,41 @@ export class ColombianTaxCalculator {
     logger.info(
       `\nTotal Aporte Mensual:\n${monthlyHealth.toNumber().toLocaleString('es-CO')} + ${monthlyPension.toNumber().toLocaleString('es-CO')} = ${monthlyTotalDeductions.toNumber().toLocaleString('es-CO')} COP\n`,
     );
+
+    const header = [
+      { value: 'Concepto', width: 15 },
+      { value: 'Cálculo', width: 40 },
+      { value: 'Valor (COP)', width: 20 },
+    ];
+
+    const rows = [
+      [
+        'IBC',
+        `${monthlyIncomeDecimal.toNumber().toLocaleString('es-CO')} × ${this.contributionBase.times(100).toNumber()}%`,
+        ibc.toNumber().toLocaleString('es-CO'),
+      ],
+      [
+        'Salud',
+        `${ibc.toNumber().toLocaleString('es-CO')} × ${this.healthRate.times(100).toNumber()}%`,
+        monthlyHealth.toNumber().toLocaleString('es-CO'),
+      ],
+      [
+        'Pensión',
+        `${ibc.toNumber().toLocaleString('es-CO')} × ${this.pensionRate.times(100).toNumber()}%`,
+        monthlyPension.toNumber().toLocaleString('es-CO'),
+      ],
+      ['Total Aportes', '', monthlyTotalDeductions.toNumber().toLocaleString('es-CO')],
+    ];
+
+    const table = Table(header, rows, [], {
+      headerAlign: 'left',
+      align: 'left',
+      borderStyle: 1,
+      padding: 1,
+    });
+
+    logger.info('\n=== RESUMEN DE APORTES MENSUALES ===\n');
+    logger.info(`\n${  table.render()}`);
 
     // Move the rest of the calculations to debug level
     const annualContributions = monthlyTotalDeductions.times(this.monthsInYear);
