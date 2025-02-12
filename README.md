@@ -33,6 +33,12 @@ This project is a Colombian Tax Calculator designed to calculate the monthly tax
     npm install
     ````
 
+4. Set environments
+
+    ```bash
+    LOG_LEVEL=trace #Pino level logs
+    ```
+
 ## Usage
 
 To use the Colombian Tax Calculator:
