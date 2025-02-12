@@ -1,5 +1,7 @@
 import pino from 'pino';
 
+const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
+
 export const logger = pino({
   transport: {
     target: 'pino-pretty',
@@ -10,5 +12,5 @@ export const logger = pino({
       messageFormat: '{msg}',
     },
   },
-  level: 'info', // This allows info and error, but filters out debug/trace
+  level: LOG_LEVEL,
 });

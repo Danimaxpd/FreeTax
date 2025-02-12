@@ -1,8 +1,8 @@
 import Table from 'tty-table';
 import Decimal from 'decimal.js';
-import { TaxDetails } from '../types/tax.types.js';
-import { TAX_VALUES, TAX_BRACKETS, ValidTaxYear } from '../constants/tax-values.js';
-import { logger } from '../utils/logger.js';
+import { TaxDetails } from '../types/tax.types';
+import { TAX_VALUES, TAX_BRACKETS, ValidTaxYear } from '../constants/tax-values';
+import { logger } from '../utils/logger';
 
 export class ColombianTaxCalculator {
   private readonly uvt: Decimal;
