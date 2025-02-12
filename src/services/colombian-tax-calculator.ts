@@ -60,33 +60,100 @@ export class ColombianTaxCalculator {
   }
 
   public calculateTax(monthlyIncome: number): TaxDetails {
+    // 1. Basic calculations
     const monthlyIncomeDecimal = new Decimal(monthlyIncome);
     const annualIncome = this.convertMonthlyToAnnual(monthlyIncome);
-    logger.debug(`Annual income: ${annualIncome.toNumber()}`);
-
-    // Calculate IBC and contributions
     const ibc = this.calculateIBC(monthlyIncomeDecimal);
-    logger.info(
-      `\nIBC:\n${monthlyIncomeDecimal.toNumber().toLocaleString('es-CO')} × ${this.contributionBase.times(100).toNumber()}% = ${ibc.toNumber().toLocaleString('es-CO')} COP`,
-    );
 
+    // 2. Monthly contributions
     const monthlyHealth = this.calculateHealthContribution(monthlyIncomeDecimal);
-    logger.info(
-      `\nAporte a Salud (${this.healthRate.times(100).toNumber()}% del IBC):\n${ibc.toNumber().toLocaleString('es-CO')} × ${this.healthRate.times(100).toNumber()}% = ${monthlyHealth.toNumber().toLocaleString('es-CO')} COP`,
-    );
-
     const monthlyPension = this.calculatePensionContribution(monthlyIncomeDecimal);
-    logger.info(
-      `\nAporte a Pensión (${this.pensionRate.times(100).toNumber()}% del IBC):\n${ibc.toNumber().toLocaleString('es-CO')} × ${this.pensionRate.times(100).toNumber()}% = ${monthlyPension.toNumber().toLocaleString('es-CO')} COP`,
-    );
-
     const monthlyTotalDeductions = monthlyHealth.plus(monthlyPension);
-    logger.info(
-      `\nTotal Aporte Mensual:\n${monthlyHealth.toNumber().toLocaleString('es-CO')} + ${monthlyPension.toNumber().toLocaleString('es-CO')} = ${monthlyTotalDeductions.toNumber().toLocaleString('es-CO')} COP\n`,
-    );
+    const annualContributions = monthlyTotalDeductions.times(this.monthsInYear);
+
+    // 3. Tax calculations
+    const presumptiveCosts = annualIncome.times(this.presumptiveCostsRate);
+    const taxableIncome = annualIncome.minus(presumptiveCosts).minus(annualContributions);
+    const taxableIncomeUvt = this.calculateUvtValue(taxableIncome);
+
+    // 4. Calculate tax by brackets
+    let tax = new Decimal(0);
+    TAX_BRACKETS.forEach(({ lowerLimit, upperLimit, rate }) => {
+      if (taxableIncomeUvt.greaterThan(lowerLimit)) {
+        const taxableAmount = Decimal.min(
+          taxableIncomeUvt.minus(lowerLimit),
+          new Decimal(upperLimit).minus(lowerLimit),
+        );
+        const taxForBracket = taxableAmount.times(rate).dividedBy(100).times(this.uvt);
+        tax = tax.plus(taxForBracket);
+      }
+    });
+
+    // 5. Final calculations
+    const monthlyTax = tax.dividedBy(this.monthsInYear);
+    const effectiveTaxRate = tax.dividedBy(annualIncome).times(100);
+    const monthlyNetIncome = monthlyIncomeDecimal.minus(monthlyTotalDeductions).minus(monthlyTax);
+
+    // 6. Debug logging
+    this.logDebugInformation({
+      annualIncome,
+      annualContributions,
+      presumptiveCosts,
+      taxableIncome,
+      taxableIncomeUvt,
+      tax,
+      monthlyTax,
+      effectiveTaxRate,
+      monthlyNetIncome,
+    });
+
+    // 7. Display summary table
+    this.displaySummaryTable({
+      monthlyIncomeDecimal,
+      ibc,
+      monthlyHealth,
+      monthlyPension,
+      monthlyTotalDeductions,
+      monthlyTax,
+    });
+
+    // 8. Return tax details
+    return {
+      monthlyIncome: monthlyIncomeDecimal,
+      annualIncome,
+      monthlyPresumptiveCosts: presumptiveCosts.dividedBy(this.monthsInYear),
+      annualPresumptiveCosts: presumptiveCosts,
+      monthlyTaxableIncome: taxableIncome.dividedBy(this.monthsInYear),
+      annualTaxableIncome: taxableIncome,
+      monthlyTaxAmount: monthlyTax,
+      annualTaxAmount: tax,
+      effectiveTaxRate,
+      monthlyHealth,
+      monthlyPension,
+      monthlyTotalDeductions,
+      monthlyNetIncome,
+    };
+  }
+
+  private displaySummaryTable(params: {
+    monthlyIncomeDecimal: Decimal;
+    ibc: Decimal;
+    monthlyHealth: Decimal;
+    monthlyPension: Decimal;
+    monthlyTotalDeductions: Decimal;
+    monthlyTax: Decimal;
+  }): void {
+    const {
+      monthlyIncomeDecimal,
+      ibc,
+      monthlyHealth,
+      monthlyPension,
+      monthlyTotalDeductions,
+      monthlyTax,
+    } = params;
 
     const header = [
-      { value: 'Concepto', width: 15 },
+      { value: 'Concepto', width: 20 },
       { value: 'Cálculo', width: 40 },
       { value: 'Valor (COP)', width: 20 },
     ];
@@ -107,69 +174,51 @@ export class ColombianTaxCalculator {
         `${ibc.toNumber().toLocaleString('es-CO')} × ${this.pensionRate.times(100).toNumber()}%`,
         monthlyPension.toNumber().toLocaleString('es-CO'),
       ],
-      ['Total Aportes', '', monthlyTotalDeductions.toNumber().toLocaleString('es-CO')],
+      ['Retención en la Fuente', 'Cálculo por UVT', monthlyTax.toNumber().toLocaleString('es-CO')],
+      [
+        'Total Deducciones',
+        '',
+        monthlyTotalDeductions.plus(monthlyTax).toNumber().toLocaleString('es-CO'),
+      ],
     ];
 
-    const table = Table(header, rows, [], {
-      headerAlign: 'left',
-      align: 'left',
-      borderStyle: 1,
-      padding: 1,
-    });
+    const table = Table(header, rows, []);
+    logger.info('\n=== RESUMEN DE APORTES Y RETENCIONES MENSUALES ===\n');
+    logger.info(`\n${table.render()}`);
+  }
 
-    logger.info('\n=== RESUMEN DE APORTES MENSUALES ===\n');
-    logger.info(`\n${  table.render()}`);
-
-    // Move the rest of the calculations to debug level
-    const annualContributions = monthlyTotalDeductions.times(this.monthsInYear);
-    logger.debug(`Annual contributions: ${annualContributions.toNumber()}`);
-
-    const presumptiveCosts = annualIncome.times(this.presumptiveCostsRate);
-    logger.debug(`Presumptive costs: ${presumptiveCosts.toNumber()}`);
-
-    const taxableIncome = annualIncome.minus(presumptiveCosts).minus(annualContributions);
-    logger.debug(`Taxable income: ${taxableIncome.toNumber()}`);
-    const taxableIncomeUvt = this.calculateUvtValue(taxableIncome);
-    logger.debug(`Taxable income in UVT: ${taxableIncomeUvt.toNumber()}`);
-
-    let tax = new Decimal(0);
-
-    TAX_BRACKETS.forEach(({ lowerLimit, upperLimit, rate }) => {
-      if (taxableIncomeUvt.greaterThan(lowerLimit)) {
-        const taxableAmount = Decimal.min(
-          taxableIncomeUvt.minus(lowerLimit),
-          new Decimal(upperLimit).minus(lowerLimit),
-        );
-        const taxForBracket = taxableAmount.times(rate).dividedBy(100).times(this.uvt);
-        tax = tax.plus(taxForBracket);
-        logger.debug(
-          `Tax for bracket ${lowerLimit}-${upperLimit} UVT at rate ${rate}%: ${taxForBracket.toNumber()}`,
-        );
-      }
-    });
-
-    const monthlyTax = tax.dividedBy(this.monthsInYear);
-    logger.debug(`Monthly tax amount: ${monthlyTax.toNumber()}`);
-    const effectiveTaxRate = tax.dividedBy(annualIncome).times(100);
-    logger.debug(`Effective tax rate: ${effectiveTaxRate.toNumber()}%`);
-    const monthlyNetIncome = monthlyIncomeDecimal.minus(monthlyTotalDeductions);
-    logger.debug(`Monthly net income: ${monthlyNetIncome.toNumber()}`);
-
-    return {
-      monthlyIncome: monthlyIncomeDecimal,
+  private logDebugInformation(params: {
+    annualIncome: Decimal;
+    annualContributions: Decimal;
+    presumptiveCosts: Decimal;
+    taxableIncome: Decimal;
+    taxableIncomeUvt: Decimal;
+    tax: Decimal;
+    monthlyTax: Decimal;
+    effectiveTaxRate: Decimal;
+    monthlyNetIncome: Decimal;
+  }): void {
+    const {
       annualIncome,
-      monthlyPresumptiveCosts: presumptiveCosts.dividedBy(this.monthsInYear),
-      annualPresumptiveCosts: presumptiveCosts,
-      monthlyTaxableIncome: taxableIncome.dividedBy(this.monthsInYear),
-      annualTaxableIncome: taxableIncome,
-      monthlyTaxAmount: monthlyTax,
-      annualTaxAmount: tax,
+      annualContributions,
+      presumptiveCosts,
+      taxableIncome,
+      taxableIncomeUvt,
+      tax,
+      monthlyTax,
       effectiveTaxRate,
-      monthlyHealth,
-      monthlyPension,
-      monthlyTotalDeductions,
       monthlyNetIncome,
-    };
+    } = params;
+
+    logger.debug(`Annual income: ${annualIncome.toNumber()}`);
+    logger.debug(`Annual contributions: ${annualContributions.toNumber()}`);
+    logger.debug(`Presumptive costs: ${presumptiveCosts.toNumber()}`);
+    logger.debug(`Taxable income: ${taxableIncome.toNumber()}`);
+    logger.debug(`Taxable income in UVT: ${taxableIncomeUvt.toNumber()}`);
+    logger.debug(`Annual tax: ${tax.toNumber()}`);
+    logger.debug(`Monthly tax amount: ${monthlyTax.toNumber()}`);
+    logger.debug(`Effective tax rate: ${effectiveTaxRate.toNumber()}%`);
+    logger.debug(`Monthly net income: ${monthlyNetIncome.toNumber()}`);
   }
 
   public printTaxReport(taxDetails: TaxDetails): void {
