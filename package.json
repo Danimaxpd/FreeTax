@@ -1,18 +1,14 @@
 {
   "name": "colombia-tax-calculator",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "clean": "rimraf dist",
-    "build": "npm run clean && tsc",
-    "start": "node dist/index.js",
     "dev": "tsx -r dotenv/config src/index.ts",
-    "lint": "eslint . --ext .ts",
-    "lint:fix": "eslint . --ext .ts --fix",
-    "format": "prettier --write \"src/**/*.ts\"",
-    "format:check": "prettier --check \"src/**/*.ts\"",
-    "watch": "tsc -w"
+    "build": "npm run clean && tsc",
+    "postbuild": "node scripts/fix-imports.js",
+    "start": "npm run build && node dist/index.js",
+    "clean": "rimraf dist"
   },
   "dependencies": {
     "decimal.js": "10.4.3",

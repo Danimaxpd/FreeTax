@@ -1,7 +1,7 @@
 import Table from 'tty-table';
 import Decimal from 'decimal.js';
 import { TaxDetails } from '../types/tax.types';
-import { TAX_VALUES, TAX_BRACKETS, ValidTaxYear } from '../constants/tax-values';
+import { TAX_YEARS, TAX_BRACKETS, ValidTaxYear } from '../constants/tax-values';
 import { logger } from '../utils/logger';
 
 export class ColombianTaxCalculator {
@@ -23,17 +23,17 @@ export class ColombianTaxCalculator {
 
   constructor(year: ValidTaxYear) {
     this.year = year;
-    const values = TAX_VALUES[this.year];
+    const values = TAX_YEARS[this.year];
     if (!values) {
       throw new Error(`Tax values for year ${year} are not defined.`);
     }
 
     this.uvt = new Decimal(values.uvt);
     this.minimumWage = new Decimal(values.minimumWage);
-    this.healthRate = new Decimal(values.healthRate);
-    this.pensionRate = new Decimal(values.pensionRate);
-    this.contributionBase = new Decimal(values.contributionBase);
-    this.presumptiveCostsRate = new Decimal(values.presumptiveCostsRate);
+    this.healthRate = new Decimal(values.contributions.health.rate);
+    this.pensionRate = new Decimal(values.contributions.pension.rate);
+    this.contributionBase = new Decimal(values.contributions.health.base);
+    this.presumptiveCostsRate = new Decimal(values.deductions.presumptiveCosts);
   }
 
   private calculateUvtValue(income: Decimal): Decimal {
@@ -117,21 +117,44 @@ export class ColombianTaxCalculator {
       monthlyTax,
     });
 
-    // 8. Return tax details
+    // 8. Return tax details using the new structure
     return {
       monthlyIncome: monthlyIncomeDecimal,
       annualIncome,
-      monthlyPresumptiveCosts: presumptiveCosts.dividedBy(this.monthsInYear),
-      annualPresumptiveCosts: presumptiveCosts,
+      effectiveTaxRate,
+      monthlyTotalDeductions,
+      monthlyNetIncome,
       monthlyTaxableIncome: taxableIncome.dividedBy(this.monthsInYear),
       annualTaxableIncome: taxableIncome,
       monthlyTaxAmount: monthlyTax,
       annualTaxAmount: tax,
-      effectiveTaxRate,
       monthlyHealth,
       monthlyPension,
-      monthlyTotalDeductions,
-      monthlyNetIncome,
+      monthlyPresumptiveCosts: presumptiveCosts.dividedBy(this.monthsInYear),
+      contributions: {
+        health: {
+          base: ibc,
+          amount: monthlyHealth,
+        },
+        pension: {
+          base: ibc,
+          amount: monthlyPension,
+        },
+      },
+      deductions: {
+        presumptiveCosts,
+        totalContributions: annualContributions,
+      },
+      tax: {
+        taxableIncome,
+        annualAmount: tax,
+        monthlyAmount: monthlyTax,
+        effectiveRate: effectiveTaxRate,
+      },
+      summary: {
+        totalMonthlyDeductions: monthlyTotalDeductions.plus(monthlyTax),
+        monthlyNetIncome,
+      },
     };
   }
 
@@ -254,9 +277,7 @@ export class ColombianTaxCalculator {
 
     logger.debug('\n--- Base Gravable ---');
     logger.debug(
-      `Costos Presuntivos (25%): $${taxDetails.monthlyPresumptiveCosts
-        .toNumber()
-        .toLocaleString('es-CO')} COP`,
+      `Costos Presuntivos (25%): $${taxDetails.monthlyPresumptiveCosts?.toNumber().toLocaleString('es-CO')} COP`,
     );
     logger.debug(
       `Base Gravable Mensual: $${taxDetails.monthlyTaxableIncome
