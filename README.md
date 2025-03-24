@@ -45,18 +45,13 @@ This project is a Colombian Tax Calculator designed to calculate the monthly tax
 To use the Colombian Tax Calculator:
 
 ```bash
-npm run dev
-```
-
-### Example Usage
-
-```bash
-npm run dev
+npm run start
 ```
 
 ### Example Output
 
 ```bash
+npm run start
 Ingrese su salario mensual (COP): 5000000
 [2025-03-23 23:03:01.809 -0500] INFO: Calculadora de Impuestos Colombia 2025
 [2025-03-23 23:03:01.810 -0500] INFO: =====================================
