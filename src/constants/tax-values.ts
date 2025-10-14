@@ -1,6 +1,5 @@
 import { TaxYearConfig } from '../types/tax.types';
 
-// Add type for valid years
 export type ValidTaxYear = keyof typeof TAX_YEARS;
 
 export const TAX_YEARS: Record<number, TaxYearConfig> = {
@@ -31,7 +30,6 @@ export const TAX_YEARS: Record<number, TaxYearConfig> = {
       { lowerLimit: 18970, upperLimit: Infinity, rate: 39 },
     ],
   },
-  // Add more years as needed
 };
 
 export const TAX_BRACKETS = [
