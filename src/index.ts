@@ -23,7 +23,7 @@ async function main() {
 
       if (!parsedIncome || !isValidNumber(monthlyIncome)) {
         logger.error(
-          'Por favor ingrese un valor numérico válido mayor a 0 (ejemplo: 15.000.000 o 15,000,000)',
+          'Por favor ingrese un valor numérico válido mayor a 1.000.000 (ejemplo: 15.000.000 o 15,000,000)',
         );
       }
     } while (!parsedIncome || !isValidNumber(monthlyIncome));
@@ -67,8 +67,8 @@ async function main() {
     );
     logger.info(`Ingreso Neto Mensual: ${formatCurrency(taxDetails.monthlyNetIncome)}`);
     logger.info('================================');
-  } catch (error) {
-    logger.error('Error al calcular impuestos:', error);
+  } catch (e: unknown) {
+    logger.error(`Error al calcular impuestos: ${e instanceof Error ? e.message : String(e)}`);
   }
 }
 

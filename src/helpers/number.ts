@@ -16,7 +16,12 @@ function parseFormattedNumber(input: string): number | null {
       return null;
     }
 
-    return parseInt(cleanInput, 10);
+    const numberInput = parseInt(cleanInput,10);
+    if( numberInput <= 1000000) {
+      return null;
+    }
+
+    return numberInput;
   } catch {
     return null;
   }
