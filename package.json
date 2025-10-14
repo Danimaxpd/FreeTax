@@ -13,7 +13,7 @@
   "dependencies": {
     "decimal.js": "10.4.3",
     "dotenv": "16.4.7",
-    "pino": "8.17.2",
+    "pino": "10.0.0",
     "pino-pretty": "10.3.1",
     "prompt-sync": "4.2.0",
     "tty-table": "4.2.3"
@@ -30,7 +30,7 @@
     "eslint-plugin-import": "2.29.1",
     "prettier": "3.2.0",
     "rimraf": "5.0.5",
-    "tsx": "4.7.0",
+    "tsx": "4.20.6",
     "typescript": "5.2.2"
   },
   "engines": {
