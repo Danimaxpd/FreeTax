@@ -6,10 +6,10 @@ This project is a Colombian Tax Calculator designed to calculate the monthly tax
 
 ## Features
 
-- Dynamic tax calculations based on yearly configurations
+- Dynamic tax calculations based on yearly configurations (2025, 2026)
 - Calculate monthly and annual income
-- Calculate health and pension contributions based on configurable rates (currently 12.5% and 16% respectively)
-- Calculate taxable income with presumptive costs (currently 25%)
+- Calculate health and pension contributions based on configurable rates per year
+- Calculate taxable income with presumptive costs
 - Apply progressive tax brackets using UVT values
 - Generate detailed tax reports with monthly deductions
 - Format numbers in Colombian peso style (e.g., 15.000.000)
@@ -42,44 +42,41 @@ This project is a Colombian Tax Calculator designed to calculate the monthly tax
 
 ## Usage
 
-To use the Colombian Tax Calculator:
+To run the Colombian Tax Calculator:
 
 ```bash
-npm run start
+npm start
 ```
 
 ### Example Output
 
-```bash
-npm run start
+```
 Ingrese su salario mensual (COP): 5000000
-[2025-03-23 23:03:01.809 -0500] INFO: Calculadora de Impuestos Colombia 2025
-[2025-03-23 23:03:01.810 -0500] INFO: =====================================
-[2025-03-23 23:03:05.372 -0500] INFO:
-=== REPORTE DE IMPUESTOS 2025 ===
-[2025-03-23 23:03:05.372 -0500] INFO:
+
+=== REPORTE DE IMPUESTOS 2026 ===
+
 --- Aportes ---
-[2025-03-23 23:03:05.412 -0500] INFO: Salud (12.5%): $250.000 COP
-[2025-03-23 23:03:05.412 -0500] INFO: Pensión (16%): $320.000 COP
-[2025-03-23 23:03:05.413 -0500] INFO: Total: $570.000 COP
-[2025-03-23 23:03:05.413 -0500] INFO: --- DETALLES DE CONTRIBUCIONES ---
-[2025-03-23 23:03:05.413 -0500] INFO: --- Valores Mensuales ---
-[2025-03-23 23:03:05.413 -0500] INFO: Salario Mensual: $5.000.000 COP
-[2025-03-23 23:03:05.413 -0500] INFO: Costos Presuntivos Mensuales (25%): $1.250.000 COP
-[2025-03-23 23:03:05.413 -0500] INFO: Base Gravable Mensual: $3.180.000 COP
-[2025-03-23 23:03:05.413 -0500] INFO: Impuesto Mensual a Pagar: $0 COP
-[2025-03-23 23:03:05.413 -0500] INFO:
+Salud (12.5%): $250.000 COP
+Pensión (16%): $320.000 COP
+Total: $570.000 COP
+--- DETALLES DE CONTRIBUCIONES ---
+--- Valores Mensuales ---
+Salario Mensual: $5.000.000 COP
+Costos Presuntivos Mensuales (25%): $1.250.000 COP
+Base Gravable Mensual: $3.180.000 COP
+Impuesto Mensual a Pagar: $0 COP
+
 --- Valores Anuales ---
-[2025-03-23 23:03:05.413 -0500] INFO: Ingreso Anual: $60.000.000 COP
-[2025-03-23 23:03:05.413 -0500] INFO: Costos Presuntivos Anuales (25%): $15.000.000 COP
-[2025-03-23 23:03:05.413 -0500] INFO: Base Gravable Anual: $38.160.000 COP
-[2025-03-23 23:03:05.413 -0500] INFO: Impuesto Anual a Pagar: $0 COP
-[2025-03-23 23:03:05.413 -0500] INFO: Tasa Efectiva de Impuestos: 0.00%
-[2025-03-23 23:03:05.413 -0500] INFO:
+Ingreso Anual: $60.000.000 COP
+Costos Presuntivos Anuales (25%): $15.000.000 COP
+Base Gravable Anual: $38.160.000 COP
+Impuesto Anual a Pagar: $0 COP
+Tasa Efectiva de Impuestos: 0.00%
+
 --- Resumen ---
-[2025-03-23 23:03:05.413 -0500] INFO: Total Deducciones Mensuales: $570.000 COP
-[2025-03-23 23:03:05.413 -0500] INFO: Ingreso Neto Mensual: $4.430.000 COP
-[2025-03-23 23:03:05.413 -0500] INFO: ================================
+Total Deducciones Mensuales: $570.000 COP
+Ingreso Neto Mensual: $4.430.000 COP
+================================
 ```
 
 ## How It Works
@@ -88,29 +85,46 @@ The calculator performs the following operations:
 
 1. Accepts monthly income in Colombian Peso format (e.g., 16.600.000)
 2. Calculates the contribution base (IBC) as 40% of monthly income (with minimum wage floor)
-3. Calculates health (12.5%) and pension (16%) contributions based on the IBC
-4. Calculates annual income and applies presumptive costs deduction (25%)
+3. Calculates health and pension contributions based on the IBC
+4. Calculates annual income and applies presumptive costs deduction
 5. Determines taxable income by subtracting deductions and contributions
-6. Applies progressive tax brackets using UVT values for 2025
+6. Applies progressive tax brackets (Art. 241 Estatuto Tributario) using UVT values
 7. Calculates monthly tax withholding and effective tax rate
 8. Shows total monthly deductions and net income
 
 ## Configuration
 
-The calculator supports multiple year configurations. Currently, it includes data for 2025:
+The calculator supports multiple year configurations. Currently, it includes data for 2025 and 2026:
 
-- UVT Value: $49,799 COP
-- Minimum Wage: $1,300,000 COP
-- Health Contribution: 12.5% of 40% of income
-- Pension Contribution: 16% of 40% of income
+### 2025
+
+- UVT Value: $49,799 COP (Resolución DIAN)
+- Minimum Wage: $1,423,500 COP (Decreto 1572 de 2024)
+- Health Contribution: 12.5% of IBC
+- Pension Contribution: 16% of IBC
+- IBC Base: 40% of monthly income
 - Presumptive Costs: 25% of income
-- Progressive Tax Brackets:
-  - 0% up to 1090 UVT
-  - 19% from 1090 to 1700 UVT
-  - 28% from 1700 to 4100 UVT
-  - 33% from 4100 to 8670 UVT
-  - 35% from 8670 to 18970 UVT
-  - 39% above 18970 UVT
+
+### 2026
+
+- UVT Value: $52,374 COP (Resolución DIAN 000238 de 2025)
+- Minimum Wage: $1,750,905 COP (Decreto 0159 de 2026)
+- Health Contribution: 12.5% of IBC
+- Pension Contribution: 16% of IBC
+- IBC Base: 40% of monthly income
+- Presumptive Costs: 25% of income
+
+### Progressive Tax Brackets (Art. 241 ET)
+
+Both years share the same bracket structure:
+
+- 0% up to 1,090 UVT
+- 19% from 1,090 to 1,700 UVT
+- 28% from 1,700 to 4,100 UVT
+- 33% from 4,100 to 8,670 UVT
+- 35% from 8,670 to 18,970 UVT
+- 37% from 18,970 to 31,000 UVT
+- 39% above 31,000 UVT
 
 To add configurations for other years, update the `TAX_YEARS` object in `src/constants/tax-values.ts`.
 
