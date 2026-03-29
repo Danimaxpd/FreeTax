@@ -2,6 +2,7 @@ import { TaxBracket } from '../types/tax.types.js';
 
 export const UVT_VALUES: { [year: number]: number } = {
   2025: 49799,
+  2026: 52374,
 };
 
 export const TAX_BRACKETS: TaxBracket[] = [
@@ -10,5 +11,6 @@ export const TAX_BRACKETS: TaxBracket[] = [
   { lowerLimit: 1700, upperLimit: 4100, rate: 28 }, // 28% > 1700 UVT and <= 4100 UVT
   { lowerLimit: 4100, upperLimit: 8670, rate: 33 }, // 33% > 4100 UVT and <= 8670 UVT
   { lowerLimit: 8670, upperLimit: 18970, rate: 35 }, // 35% > 8670 UVT and <= 18970 UVT
-  { lowerLimit: 18970, upperLimit: Infinity, rate: 39 }, // 39% > 18970 UVT
+  { lowerLimit: 18970, upperLimit: 31000, rate: 37 }, // 37% > 18970 UVT and <= 31000 UVT
+  { lowerLimit: 31000, upperLimit: Infinity, rate: 39 }, // 39% > 31000 UVT
 ];

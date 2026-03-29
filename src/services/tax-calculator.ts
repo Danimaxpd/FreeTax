@@ -13,6 +13,14 @@ export class TaxCalculator {
     this.config = config;
   }
 
+  public getRates(): { health: number; pension: number; presumptiveCosts: number } {
+    return {
+      health: this.config.contributions.health.rate * 100,
+      pension: this.config.contributions.pension.rate * 100,
+      presumptiveCosts: this.config.deductions.presumptiveCosts * 100,
+    };
+  }
+
   private calculateContributionBase(
     monthlyIncome: Decimal,
     config: { base: number; minimum: number },
