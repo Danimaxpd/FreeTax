@@ -2,30 +2,32 @@
 
 Guide for AI coding agents working on **FreeTax / Colombian Tax Calculator** (`colombia-tax-calculator`).
 
+> For adding a new fiscal year step-by-step, see [NEW_YEAR_GUIDE.md](./NEW_YEAR_GUIDE.md).
+
 ---
 
 ## 1. Project Overview & Architecture
 
 This repository is an **in-memory Colombian income tax (Renta) and social security (PILA) planner** for independent workers (*trabajadores independientes*), implementing the **Estatuto Tributario (ET)** and **Ley 2277 de 2022**.
 
-There is **no backend server or database**: the TypeScript calculation engine runs purely in memory and is shared directly by both the **Vite + React Web UI** (default) and the **Interactive CLI**.
+There is **no backend server or database**: the TypeScript calculation engine runs purely in memory and is shared directly by both the **Vite + React Web UI** (default, Dark Mode first) and the **Interactive CLI**.
 
 ```
-                        npm start [-- --cli]
-                                 │
-                                 ▼
+                   npm start [cli | --cli | -c]
+                                │
+                                ▼
                        scripts/start.js
-                       ┌─────────┴─────────┐
-                       │ (default)         │ (--cli or -c)
-                       ▼                   ▼
-              Vite + React UI         Interactive CLI
-             src/ui/main.tsx            src/cli.ts
-             src/ui/App.tsx           (prompt-sync, tty-table,
-             src/ui/components/*       pino logger, --year=YYYY)
-                       │                   │
-                       └─────────┬─────────┘
-                                 │ imports shared in-memory engine
-                                 ▼
+                       ┌────────┴────────┐
+                       │ (default)       │ (cli / --cli / -c)
+                       ▼                 ▼
+              Vite + React UI        Interactive CLI
+             src/ui/main.tsx           src/cli.ts
+             src/ui/App.tsx          (prompt-sync, tty-table,
+             src/ui/components/*      pino logger, --year=YYYY)
+                       │                 │
+                       └────────┬────────┘
+                                │ imports shared in-memory engine
+                                ▼
                Core TypeScript Domain Engine (src/)
         ┌───────────────────────────────────────────────┐
         │ src/services/tax-calculator.ts (TaxCalculator)│
@@ -36,6 +38,7 @@ There is **no backend server or database**: the TypeScript calculation engine ru
         ├───────────────────────────────────────────────┤
         │ src/constants/tax-values.ts                   │
         │   ├─ TAX_YEARS (2024, 2025, 2026)             │
+        │   ├─ OFFICIAL_LAW_LINKS, getDefaultTaxYear    │
         │   ├─ TAX_BRACKETS, DEFAULT_FSP_BRACKETS       │
         │   ├─ DEFAULT_STATUTORY_CAPS, ARL_RISK_LEVELS  │
         │   └─ createYearConfigFromBase / register...   │
@@ -49,25 +52,26 @@ There is **no backend server or database**: the TypeScript calculation engine ru
 
 | Path | Purpose |
 | :--- | :--- |
-| `src/types/tax.types.ts` | Shared TypeScript interfaces (`TaxYearConfig`, `StatutoryCapsConfig`, `DeductionInputs`, `AnnualTaxPlan`, `RegimeCalculationSummary`, `MonthlyBreakdown`, `MonthlyPilaBreakdown`, `TaxDetails`). |
-| `src/constants/tax-values.ts` | Official tax year registry (`TAX_YEARS` for 2024, 2025, 2026), Art. 241 UVT brackets, FSP brackets, statutory caps, `ARL_RISK_LEVELS`, `MONTH_NAMES_ES`, and dynamic year registration helpers. |
+| `src/types/tax.types.ts` | Shared TypeScript interfaces (`TaxYearConfig`, `OfficialLawResource`, `StatutoryCapsConfig`, `DeductionInputs`, `AnnualTaxPlan`, `RegimeCalculationSummary`, `MonthlyBreakdown`, `MonthlyPilaBreakdown`, `TaxDetails`). |
+| `src/constants/tax-values.ts` | Official tax year registry (`TAX_YEARS` for 2024, 2025, 2026), `OFFICIAL_LAW_LINKS`, `DEFAULT_LAW_LABEL`, `getDefaultTaxYear()`, Art. 241 UVT brackets, FSP brackets, statutory caps, `ARL_RISK_LEVELS`, `MONTH_NAMES_ES`, `validateTaxYearConfig()`, and dynamic year registration helpers. |
 | `src/services/tax-calculator.ts` | `TaxCalculator` class: `calculateMonthlyPila()`, `calculateAnnualPlan()`, and backward-compatible `calculateTax()`. |
 | `src/helpers/number.ts` | Currency parsing and validation (`parseCurrencyInput`, `parseFormattedNumber`, `isValidNumber`), supporting Colombian (`15.000.000`) and US (`15,000,000`) separators. |
 | `src/utils/format.ts` | Currency formatting (`formatCOP`, `formatCurrency`). |
 | `src/utils/logger.ts` | Pino logger configured with `pino-pretty` and `LOG_LEVEL`. |
-| `src/cli.ts` | Interactive & piped-stdin CLI (`runCli`) supporting `--year=YYYY`, fixed vs. 12-month variable income, optional Ley 2277 deductions, and `tty-table` reports. |
-| `src/index.ts` | Public library entrypoint re-exporting engine, types, constants, helpers, and `runCli`. |
-| `src/ui/` | Vite + React + TypeScript Web UI (`App.tsx`, `main.tsx`, `styles.css`, `components/*`), with optional `localStorage` auto-save and JSON scenario import/export. |
-| `scripts/start.js` | Unified launcher: starts `vite --open` by default, or `tsx -r dotenv/config src/cli.ts` when `--cli` / `-c` is passed. |
+| `src/cli.ts` | Interactive & piped-stdin CLI (`runCli`) supporting `--year=YYYY`, `getDefaultTaxYear()`, active `lawLabel` / `normativeRef` display, fixed vs. 12-month variable income, optional Ley 2277 deductions, and `tty-table` reports. |
+| `src/index.ts` | Public library entrypoint re-exporting engine, types, constants (`OFFICIAL_LAW_LINKS`, `getDefaultTaxYear`, etc.), helpers, and `runCli`. |
+| `src/ui/` | Vite + React + TypeScript + **Chakra UI** (`@chakra-ui/react`) Web UI (`App.tsx`, `main.tsx`, `theme.ts`, `styles.css`, `components/*`): **Tokyo Night** Dark Mode default (`initialColorMode: 'dark'`, `data-theme="dark"`, `freetax_colombia_theme_v1`) + Clean White/Navy Light Mode, Step 1 unified Salary + Fiscal Year + Law card, prioritized full-width KPIs & Paso 2 12-month table (Simplified vs. PILA Breakdown toggle + inline monthly editing), collapsible Optional Advanced deductions/regime comparison (`showAdvancedOptions` false by default), optional `localStorage` auto-save, and JSON scenario import/export. |
+| `scripts/start.js` | Unified launcher (`#!/usr/bin/env node`, wired to `bin.freetax`): starts `vite --open` by default, or `tsx -r dotenv/config src/cli.ts` when `cli`, `--cli`, or `-c` is passed. |
 | `scripts/fix-imports.js` | `postbuild` script appending `.js` extensions to relative imports in compiled `dist/`. |
 | `tests/` | Vitest test suites (`tests/tax-calculator.test.ts`, `tests/number.test.ts`). |
+| `NEW_YEAR_GUIDE.md` | Contributor guide for adding new Colombian tax years and verifying updates. |
 | `src/constants/tax-brackets.ts` & `src/services/colombian-tax-calculator.ts` | Minimal backward-compatible re-exports pointing to `tax-values.ts` and `tax-calculator.ts`. |
 
 ---
 
 ## 2. How to Add a New Tax Year (e.g., 2027)
 
-You can add a new tax year either **permanently in source** or **dynamically in memory at runtime** (used by tests and the Web UI's `"Agregar o Personalizar Año"` modal).
+See [NEW_YEAR_GUIDE.md](./NEW_YEAR_GUIDE.md) for the full checklist and official Colombian URLs (`OFFICIAL_LAW_LINKS`).
 
 ### Option A: Permanently in `src/constants/tax-values.ts`
 
@@ -75,24 +79,47 @@ You can add a new tax year either **permanently in source** or **dynamically in 
 
 ```ts
 export const TAX_YEARS: Record<number, TaxYearConfig> = {
-  2024: createYearConfigFromBase({ year: 2024, uvt: 47065, minimumWage: 1300000 }),
-  2025: createYearConfigFromBase({ year: 2025, uvt: 49799, minimumWage: 1423500 }),
-  2026: createYearConfigFromBase({ year: 2026, uvt: 52374, minimumWage: 1750905 }),
-  2027: createYearConfigFromBase({ year: 2027, uvt: 55000, minimumWage: 1900000 }), // Example
+  2024: createYearConfigFromBase({
+    year: 2024,
+    uvt: 47065,
+    minimumWage: 1300000,
+    normativeRef: 'Resolución DIAN 000187 de 2023 (UVT) · Decreto 2292 de 2023 (SMMLV)',
+  }),
+  2025: createYearConfigFromBase({
+    year: 2025,
+    uvt: 49799,
+    minimumWage: 1423500,
+    normativeRef: 'Resolución DIAN 000193 de 2024 (UVT) · Decreto 1572 de 2024 (SMMLV)',
+  }),
+  2026: createYearConfigFromBase({
+    year: 2026,
+    uvt: 52374,
+    minimumWage: 1750905,
+    normativeRef: 'Resolución DIAN 000238 de 2025 (UVT) · Decreto 0159 de 2026 (SMMLV)',
+  }),
+  2027: createYearConfigFromBase({
+    year: 2027,
+    uvt: 55000,
+    minimumWage: 1900000,
+    normativeRef: 'Resolución DIAN XXX de 2026 (UVT) · Decreto XXX de 2026 (SMMLV)',
+  }),
 };
 ```
 
-2. `createYearConfigFromBase` accepts optional overrides if statutory rates change in a future year:
+2. `createYearConfigFromBase` accepts optional overrides if statutory rates or metadata change in a future year:
    - `healthRate` (default `0.125`)
    - `pensionRate` (default `0.16`)
    - `ibcBase` (default `0.4`)
    - `presumptiveCosts` (default `0.25`)
+   - `lawLabel` (default `DEFAULT_LAW_LABEL`: `'Ley 2277 de 2022 · Estatuto Tributario (Art. 241 y 336)'`)
+   - `normativeRef` (optional string displayed in UI & CLI)
 3. If UVT brackets (`TAX_BRACKETS`), FSP brackets (`DEFAULT_FSP_BRACKETS`), or statutory caps (`DEFAULT_STATUTORY_CAPS`) change for that specific year, construct or override `brackets`, `fspBrackets`, or `caps` directly on that year's `TaxYearConfig`.
-4. Add/update unit tests in `tests/tax-calculator.test.ts` and update `README.md`.
+4. Note: `getDefaultTaxYear()` automatically picks `new Date().getFullYear()` if it exists in `TAX_YEARS`, or falls back to the highest registered year.
+5. Add/update unit tests in `tests/tax-calculator.test.ts` and update `README.md`.
 
 ### Option B: At Runtime in Memory (`createYearConfigFromBase` + `registerTaxYearConfig`)
 
-Both the UI (`src/ui/components/YearConfigModal.tsx`) and library callers can register or override a tax year in memory without modifying source files:
+Both the UI (`src/ui/components/YearConfigModal.tsx`) and library callers can register or override a tax year in memory without modifying source files (`registerTaxYearConfig` validates all required fields via `validateTaxYearConfig`):
 
 ```ts
 import {
@@ -105,10 +132,10 @@ const config2027 = createYearConfigFromBase({
   year: 2027,
   uvt: 55000,
   minimumWage: 1900000,
-  // optional: healthRate, pensionRate, ibcBase, presumptiveCosts
+  // optional: healthRate, pensionRate, ibcBase, presumptiveCosts, lawLabel, normativeRef
 });
 
-// Registers into the in-memory TAX_YEARS map (and normalizes brackets/caps/fspBrackets)
+// Validates & registers into the in-memory TAX_YEARS map
 registerTaxYearConfig(2027, config2027);
 
 const calculator = new TaxCalculator(2027);
@@ -221,9 +248,10 @@ $$\text{taxSavingsProvision}_i = \begin{cases} \text{netAnnualTaxToSave} \times 
 | :--- | :--- |
 | `npm install` | Install all dependencies (Node `>= 20.0.0`). |
 | `npm start` | Launch the unified starter (`scripts/start.js`) -> opens the **Web UI** (`vite --open`). |
-| `npm start -- --cli` | Launch the **Interactive CLI** (`scripts/start.js` detects `--cli` or `-c` and forwards remaining flags such as `--year=2025`). |
+| `npm start cli` | Launch the **Interactive CLI** directly without `--` (also supports `npm start -- --cli`, `-c`, and flags such as `--year=2025`). |
+| `npm run cli` | Launch the **Interactive CLI** directly (`tsx -r dotenv/config src/cli.ts`). |
 | `npm run start:ui` | Launch Vite Web UI directly (`vite --open`). |
-| `npm run start:cli` | Launch CLI directly (`tsx -r dotenv/config src/cli.ts`). |
+| `npm run start:cli` | Alias to launch CLI directly (`tsx -r dotenv/config src/cli.ts`). |
 | `npm run dev` | Start Vite dev server without auto-opening browser. |
 | `npm test` | Run Vitest suite once (`vitest run`). |
 | `npm run test:watch` | Run Vitest in watch mode (`vitest`). |
@@ -239,8 +267,9 @@ $$\text{taxSavingsProvision}_i = \begin{cases} \text{netAnnualTaxToSave} \times 
 - **TypeScript Strictness**: `strict: true`, `noUncheckedIndexedAccess: true`, `noImplicitReturns: true`, `noFallthroughCasesInSwitch: true` (configured in `tsconfig.json` and `tsconfig.build.json`). Always guard indexed array lookups (e.g., `arr[i] ?? default`).
 - **Financial Precision**: Use `Decimal` from `decimal.js` inside `TaxCalculator` for all tax/PILA arithmetic before converting outputs to `number`.
 - **Linting & Formatting**:
-  - ESLint extends `airbnb-base`, `airbnb-typescript/base`, `@typescript-eslint/recommended`, and `prettier` (`.eslintrc.cjs`).
+  - ESLint extends `airbnb-base`, `airbnb-typescript/base`, `@typescript-eslint/recommended`, and `prettier` (`.eslintrc.cjs`, configured with `tsx: 'never'` and `'.tsx'` resolver support).
   - `no-console` is `error` — use `logger` from `src/utils/logger.ts` in CLI/backend code instead of `console.log`.
   - Prettier (`.prettierrc`): single quotes, trailing commas (`all`), `printWidth: 100`, 2-space indent, semicolons, LF line endings.
 - **No Persistence Layer**: Keep all calculations, custom tax years, and scenario state purely in memory (the UI optionally mirrors state to browser `localStorage` and supports JSON export/import).
-- **Tests**: Add Vitest unit tests in `tests/` for any changes to PILA brackets, Ley 2277 caps, Art. 241 brackets, currency parsing, or dynamic year registration.
+- **Official Normative Links**: Keep `OFFICIAL_LAW_LINKS` in `src/constants/tax-values.ts` as the single source of truth for external official Colombian law/DIAN/Mintrabajo links rendered by the UI.
+- **Tests**: Add Vitest unit tests in `tests/` for any changes to PILA brackets, Ley 2277 caps, Art. 241 brackets, currency parsing, `getDefaultTaxYear`, or dynamic year registration.
