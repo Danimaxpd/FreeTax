@@ -1,9 +1,47 @@
 import {
   FspBracket,
+  OfficialLawResource,
   StatutoryCapsConfig,
   TaxBracket,
   TaxYearConfig,
 } from '../types/tax.types';
+
+export const DEFAULT_LAW_LABEL = 'Ley 2277 de 2022 · Estatuto Tributario (Art. 241 y 336)';
+
+export const OFFICIAL_LAW_LINKS: OfficialLawResource[] = [
+  {
+    id: 'ley-2277',
+    title: 'Ley 2277 de 2022 (Reforma Tributaria)',
+    shortLabel: 'Ley 2277 de 2022',
+    description:
+      'Tope global 40% / 1.340 UVT, tope 790 UVT renta exenta 25%, deducción 72 UVT por dependiente y 1% factura electrónica.',
+    url: 'https://www.funcionpublica.gov.co/eva/gestornormativo/norma.php?i=199883',
+  },
+  {
+    id: 'estatuto-tributario',
+    title: 'Estatuto Tributario Nacional (Art. 241, 336, 206, 387, 55)',
+    shortLabel: 'Estatuto Tributario (ET)',
+    description:
+      'Tarifas progresivas Art. 241 ET, depuración Cédula General Art. 336 ET e INCRGO Art. 55 ET.',
+    url: 'http://www.secretariasenado.gov.co/senado/basedoc/estatuto_tributario.html',
+  },
+  {
+    id: 'dian-uvt',
+    title: 'DIAN — Resoluciones Oficiales UVT',
+    shortLabel: 'Resoluciones UVT (DIAN)',
+    description:
+      'Consulta oficial del valor de la Unidad de Valor Tributario (UVT) vigente para cada año gravable.',
+    url: 'https://www.dian.gov.co/normatividad/Paginas/normas.aspx',
+  },
+  {
+    id: 'mintrabajo-smmlv',
+    title: 'Ministerio del Trabajo — Decretos SMMLV y PILA',
+    shortLabel: 'Decretos SMMLV / PILA',
+    description:
+      'Salario Mínimo Mensual Legal Vigente (SMMLV) y bases de cotización a seguridad social.',
+    url: 'https://www.mintrabajo.gov.co/',
+  },
+];
 
 export const TAX_BRACKETS: TaxBracket[] = [
   { lowerLimit: 0, upperLimit: 1090, rate: 0 }, // 0% up to 1,090 UVT
@@ -81,6 +119,8 @@ export function createYearConfigFromBase(params: {
   pensionRate?: number;
   ibcBase?: number;
   presumptiveCosts?: number;
+  lawLabel?: string;
+  normativeRef?: string;
 }): TaxYearConfig {
   const {
     year,
@@ -90,6 +130,8 @@ export function createYearConfigFromBase(params: {
     pensionRate = 0.16,
     ibcBase = 0.4,
     presumptiveCosts = 0.25,
+    lawLabel = DEFAULT_LAW_LABEL,
+    normativeRef,
   } = params;
 
   if (!Number.isFinite(year) || year <= 0) {
@@ -118,6 +160,8 @@ export function createYearConfigFromBase(params: {
     year,
     uvt,
     minimumWage,
+    lawLabel,
+    ...(normativeRef !== undefined ? { normativeRef } : {}),
     contributions: {
       health: {
         rate: healthRate,
@@ -140,9 +184,24 @@ export function createYearConfigFromBase(params: {
 }
 
 export const TAX_YEARS: Record<number, TaxYearConfig> = {
-  2024: createYearConfigFromBase({ year: 2024, uvt: 47065, minimumWage: 1300000 }),
-  2025: createYearConfigFromBase({ year: 2025, uvt: 49799, minimumWage: 1423500 }),
-  2026: createYearConfigFromBase({ year: 2026, uvt: 52374, minimumWage: 1750905 }),
+  2024: createYearConfigFromBase({
+    year: 2024,
+    uvt: 47065,
+    minimumWage: 1300000,
+    normativeRef: 'Resolución DIAN 000187 de 2023 (UVT) · Decreto 2292 de 2023 (SMMLV)',
+  }),
+  2025: createYearConfigFromBase({
+    year: 2025,
+    uvt: 49799,
+    minimumWage: 1423500,
+    normativeRef: 'Resolución DIAN 000193 de 2024 (UVT) · Decreto 1572 de 2024 (SMMLV)',
+  }),
+  2026: createYearConfigFromBase({
+    year: 2026,
+    uvt: 52374,
+    minimumWage: 1750905,
+    normativeRef: 'Resolución DIAN 000238 de 2025 (UVT) · Decreto 0159 de 2026 (SMMLV)',
+  }),
 };
 
 export type ValidTaxYear = number;
@@ -152,6 +211,15 @@ export function getAvailableYears(): number[] {
     .map(Number)
     .filter((year) => Number.isFinite(year))
     .sort((a, b) => a - b);
+}
+
+export function getDefaultTaxYear(referenceDate: Date = new Date()): number {
+  const currentYear = referenceDate.getFullYear();
+  if (Object.prototype.hasOwnProperty.call(TAX_YEARS, currentYear)) {
+    return currentYear;
+  }
+  const available = getAvailableYears();
+  return available[available.length - 1] ?? 2026;
 }
 
 export function getTaxYearConfig(year: number): TaxYearConfig {

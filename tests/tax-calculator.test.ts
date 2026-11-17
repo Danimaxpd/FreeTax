@@ -1,22 +1,58 @@
 import Decimal from 'decimal.js';
 import { describe, expect, it } from 'vitest';
 import {
+  OFFICIAL_LAW_LINKS,
   TAX_YEARS,
   createYearConfigFromBase,
   getAvailableYears,
+  getDefaultTaxYear,
   getTaxYearConfig,
   registerTaxYearConfig,
 } from '../src/constants/tax-values';
 import { TaxCalculator } from '../src/services/tax-calculator';
 
 describe('TaxYearConfig registry and years', () => {
-  it('preloads 2024, 2025, and 2026 with official UVT and SMMLV', () => {
+  it('preloads 2024, 2025, and 2026 with official UVT, SMMLV, and normative refs', () => {
     const years = getAvailableYears();
     expect(years).toEqual(expect.arrayContaining([2024, 2025, 2026]));
 
-    expect(getTaxYearConfig(2024)).toMatchObject({ uvt: 47065, minimumWage: 1300000 });
-    expect(getTaxYearConfig(2025)).toMatchObject({ uvt: 49799, minimumWage: 1423500 });
-    expect(getTaxYearConfig(2026)).toMatchObject({ uvt: 52374, minimumWage: 1750905 });
+    expect(getTaxYearConfig(2024)).toMatchObject({
+      uvt: 47065,
+      minimumWage: 1300000,
+      lawLabel: expect.stringContaining('Ley 2277 de 2022'),
+      normativeRef: expect.stringContaining('Resolución DIAN 000187'),
+    });
+    expect(getTaxYearConfig(2025)).toMatchObject({
+      uvt: 49799,
+      minimumWage: 1423500,
+      lawLabel: expect.stringContaining('Ley 2277 de 2022'),
+      normativeRef: expect.stringContaining('Resolución DIAN 000193'),
+    });
+    expect(getTaxYearConfig(2026)).toMatchObject({
+      uvt: 52374,
+      minimumWage: 1750905,
+      lawLabel: expect.stringContaining('Ley 2277 de 2022'),
+      normativeRef: expect.stringContaining('Resolución DIAN 000238'),
+    });
+  });
+
+  it('resolves getDefaultTaxYear to current year when configured or latest available otherwise', () => {
+    expect(getDefaultTaxYear(new Date(2025, 5, 15))).toBe(2025);
+    expect(getDefaultTaxYear(new Date(2026, 0, 10))).toBe(2026);
+    expect(getDefaultTaxYear(new Date(2035, 0, 1))).toBe(2026);
+  });
+
+  it('exposes official Colombian tax law resource links', () => {
+    expect(OFFICIAL_LAW_LINKS.length).toBeGreaterThanOrEqual(4);
+    expect(OFFICIAL_LAW_LINKS.map((link) => link.id)).toEqual(
+      expect.arrayContaining(['ley-2277', 'estatuto-tributario', 'dian-uvt', 'mintrabajo-smmlv']),
+    );
+    OFFICIAL_LAW_LINKS.forEach((link) => {
+      expect(link.title.length).toBeGreaterThan(0);
+      expect(link.shortLabel.length).toBeGreaterThan(0);
+      expect(link.description.length).toBeGreaterThan(0);
+      expect(link.url).toMatch(/^https?:\/\//);
+    });
   });
 
   it('throws when requesting an unregistered year', () => {

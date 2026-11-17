@@ -37,10 +37,20 @@ export interface StatutoryCapsConfig {
   electronicInvoiceCapUvt: number;
 }
 
+export interface OfficialLawResource {
+  id: string;
+  title: string;
+  shortLabel: string;
+  description: string;
+  url: string;
+}
+
 export interface TaxYearConfig {
   year?: number;
   uvt: number;
   minimumWage: number;
+  lawLabel?: string;
+  normativeRef?: string;
   contributions: {
     health: ContributionConfig;
     pension: ContributionConfig;

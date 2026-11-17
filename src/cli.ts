@@ -6,11 +6,17 @@ import {
   ARL_RISK_LEVELS,
   MONTH_NAMES_ES,
   getAvailableYears,
+  getDefaultTaxYear,
   getTaxYearConfig,
 } from './constants/tax-values';
 import { isValidNumber, parseCurrencyInput, parseFormattedNumber } from './helpers/number';
 import { TaxCalculator } from './services/tax-calculator';
-import { AnnualTaxPlan, DeductionInputs, DeductionMode } from './types/tax.types';
+import {
+  AnnualTaxPlan,
+  DeductionInputs,
+  DeductionMode,
+  TaxYearConfig,
+} from './types/tax.types';
 import { formatCOP } from './utils/format';
 import { logger } from './utils/logger';
 
@@ -303,8 +309,14 @@ function promptVariableMonthlyIncomes(ask: PromptFn): number[] {
   return monthlyArray;
 }
 
-function renderAnnualReport(plan: AnnualTaxPlan): void {
+function renderAnnualReport(plan: AnnualTaxPlan, config: TaxYearConfig): void {
   logger.info(`\n=== REPORTE ANUAL DE IMPUESTOS Y PILA ${plan.year} ===`);
+  if (config.lawLabel) {
+    logger.info(`Normativa: ${config.lawLabel}`);
+  }
+  if (config.normativeRef) {
+    logger.info(`Referencia oficial: ${config.normativeRef}`);
+  }
   logger.info(
     `UVT ${plan.year}: ${formatCOP(plan.uvt)} | SMMLV ${plan.year}: ${formatCOP(plan.minimumWage)}`,
   );
@@ -378,9 +390,7 @@ function renderAnnualReport(plan: AnnualTaxPlan): void {
 export async function runCli(argv: string[] = process.argv.slice(2)): Promise<void> {
   const ask = createInputPrompter();
   const availableYears = getAvailableYears();
-  const defaultYear = availableYears.includes(2026)
-    ? 2026
-    : (availableYears[availableYears.length - 1] ?? 2026);
+  const defaultYear = getDefaultTaxYear();
 
   try {
     let selectedYear = parseYearArg(argv);
@@ -392,8 +402,12 @@ export async function runCli(argv: string[] = process.argv.slice(2)): Promise<vo
     }
 
     const calculator = new TaxCalculator(selectedYear);
+    const activeConfig = calculator.getConfig();
 
     logger.info(`\nCalculadora de Impuestos Colombia ${selectedYear}`);
+    if (activeConfig.lawLabel) {
+      logger.info(`Ley aplicable: ${activeConfig.lawLabel}`);
+    }
     logger.info('=====================================');
 
     const incomeMode = promptIncomeMode(ask);
@@ -412,7 +426,7 @@ export async function runCli(argv: string[] = process.argv.slice(2)): Promise<vo
 
     const deductions = promptDeductions(ask);
     const plan = calculator.calculateAnnualPlan(incomes, deductions);
-    renderAnnualReport(plan);
+    renderAnnualReport(plan, activeConfig);
   } catch (error: unknown) {
     logger.error(
       `Error al calcular impuestos: ${error instanceof Error ? error.message : String(error)}`,
