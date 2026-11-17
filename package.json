@@ -3,10 +3,14 @@
   "version": "1.2.0",
   "type": "module",
   "main": "dist/index.js",
+  "bin": {
+    "freetax": "./scripts/start.js"
+  },
   "scripts": {
     "start": "node scripts/start.js",
     "start:ui": "vite --open",
     "start:cli": "tsx -r dotenv/config src/cli.ts",
+    "cli": "tsx -r dotenv/config src/cli.ts",
     "dev": "vite",
     "build": "npm run clean && tsc -p tsconfig.build.json && vite build",
     "postbuild": "node scripts/fix-imports.js",
@@ -15,8 +19,12 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@chakra-ui/react": "2.10.10",
+    "@emotion/react": "11.14.0",
+    "@emotion/styled": "11.14.1",
     "decimal.js": "10.4.3",
     "dotenv": "16.4.7",
+    "framer-motion": "11.18.2",
     "pino": "10.0.0",
     "pino-pretty": "10.3.1",
     "prompt-sync": "4.2.0",
