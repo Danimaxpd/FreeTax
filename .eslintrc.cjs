@@ -19,6 +19,7 @@ module.exports = {
       {
         js: 'never',
         ts: 'never',
+        tsx: 'never',
       },
     ],
     '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
@@ -28,7 +29,7 @@ module.exports = {
   settings: {
     'import/resolver': {
       node: {
-        extensions: ['.js', '.ts'],
+        extensions: ['.js', '.ts', '.tsx'],
       },
     },
   },
