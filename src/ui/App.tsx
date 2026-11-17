@@ -1,6 +1,23 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
+  AlertIcon,
+  Badge,
+  Box,
+  Button,
+  Checkbox,
+  CloseButton,
+  Collapse,
+  Container,
+  Flex,
+  Grid,
+  HStack,
+  Text,
+  useColorMode,
+} from '@chakra-ui/react';
+import {
   getAvailableYears,
+  getDefaultTaxYear,
   getTaxYearConfig,
   registerTaxYearConfig,
 } from '../constants/tax-values';
@@ -13,7 +30,7 @@ import {
   TaxYearConfig,
 } from '../types/tax.types';
 import { DeductionFormState, DeductionsPanel } from './components/DeductionsPanel';
-import { HeaderYearSelector } from './components/HeaderYearSelector';
+import { HeaderYearSelector, ThemeMode } from './components/HeaderYearSelector';
 import { IncomeMode, IncomePanel } from './components/IncomePanel';
 import { KpiCards } from './components/KpiCards';
 import { MonthlyCashFlowTable } from './components/MonthlyCashFlowTable';
@@ -22,6 +39,7 @@ import { YearConfigModal } from './components/YearConfigModal';
 
 const STORAGE_KEY_SCENARIO = 'freetax_colombia_scenario_v1';
 const STORAGE_KEY_AUTOSAVE = 'freetax_colombia_autosave_v1';
+const STORAGE_KEY_THEME = 'freetax_colombia_theme_v1';
 
 interface SavedScenarioPayload {
   version: number;
@@ -45,6 +63,12 @@ const DEFAULT_DEDUCTION_FORM: DeductionFormState = {
   gmfText: '0',
   arlRate: '0',
   withholdingsPaidText: '0',
+};
+
+const REGIME_LABELS: Record<'exempt25' | 'actualCosts' | 'legacyPresumptive', string> = {
+  exempt25: 'Renta Exenta 25% (Art. 206)',
+  actualCosts: 'Costos y Gastos Reales (Art. 336)',
+  legacyPresumptive: 'Clásico 25% Presuntivo',
 };
 
 function createDefaultMonthlyTexts(): string[] {
@@ -167,8 +191,25 @@ function normalizeCustomYearEntries(
   return valid;
 }
 
+function countActiveOptionalDeductions(form: DeductionFormState): number {
+  let count = 0;
+  const deps = Number.parseInt(form.dependentsCount, 10);
+  if (Number.isFinite(deps) && deps > 0) count += 1;
+  if (safeParseCurrency(form.prepaidHealthText) > 0) count += 1;
+  if (safeParseCurrency(form.housingInterestText) > 0) count += 1;
+  if (safeParseCurrency(form.voluntaryPensionText) > 0) count += 1;
+  if (safeParseCurrency(form.actualCostsText) > 0) count += 1;
+  if (safeParseCurrency(form.electronicInvoicePurchasesText) > 0) count += 1;
+  if (safeParseCurrency(form.gmfText) > 0) count += 1;
+  if ((Number.parseFloat(form.arlRate) || 0) > 0) count += 1;
+  if (safeParseCurrency(form.withholdingsPaidText) > 0) count += 1;
+  return count;
+}
+
 export const App: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const themeHydratedRef = useRef(false);
+  const { colorMode, setColorMode, toggleColorMode } = useColorMode();
 
   const [autoSave, setAutoSave] = useState<boolean>(() => {
     try {
@@ -179,17 +220,42 @@ export const App: React.FC = () => {
   });
 
   const [availableYears, setAvailableYears] = useState<number[]>(() => getAvailableYears());
-  const [selectedYear, setSelectedYear] = useState<number>(2026);
+  const [selectedYear, setSelectedYear] = useState<number>(() => getDefaultTaxYear());
   const [incomeMode, setIncomeMode] = useState<IncomeMode>('fixed');
   const [fixedIncomeText, setFixedIncomeText] = useState<string>('15.000.000');
   const [monthlyIncomeTexts, setMonthlyIncomeTexts] = useState<string[]>(createDefaultMonthlyTexts);
   const [deductionForm, setDeductionForm] = useState<DeductionFormState>(DEFAULT_DEDUCTION_FORM);
   const [customYears, setCustomYears] = useState<Array<{ year: number; config: TaxYearConfig }>>([]);
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const [showYearModal, setShowYearModal] = useState(false);
   const [statusBanner, setStatusBanner] = useState<{
     type: 'success' | 'error' | 'info';
     text: string;
   } | null>(null);
+
+  // Sync Chakra colorMode, data-theme attribute, and localStorage
+  useEffect(() => {
+    if (!themeHydratedRef.current) {
+      themeHydratedRef.current = true;
+      try {
+        const saved = window.localStorage.getItem(STORAGE_KEY_THEME);
+        if ((saved === 'light' || saved === 'dark') && saved !== colorMode) {
+          setColorMode(saved);
+          document.documentElement.setAttribute('data-theme', saved);
+          return;
+        }
+      } catch {
+        // Ignore storage error
+      }
+    }
+
+    document.documentElement.setAttribute('data-theme', colorMode);
+    try {
+      window.localStorage.setItem(STORAGE_KEY_THEME, colorMode);
+    } catch {
+      // Ignore storage error
+    }
+  }, [colorMode, setColorMode]);
 
   // Hydrate once on mount if auto-save was previously enabled
   useEffect(() => {
@@ -258,13 +324,17 @@ export const App: React.FC = () => {
   ]);
 
   const activeConfig = useMemo(() => {
+    const customOverride = customYears.find((entry) => entry.year === selectedYear);
+    if (customOverride) {
+      return customOverride.config;
+    }
     try {
       return getTaxYearConfig(selectedYear);
     } catch {
-      const fallbackYear = availableYears[availableYears.length - 1] ?? 2026;
+      const fallbackYear = getDefaultTaxYear();
       return getTaxYearConfig(fallbackYear);
     }
-  }, [selectedYear, availableYears]);
+  }, [selectedYear, customYears]);
 
   const plan: AnnualTaxPlan = useMemo(() => {
     const calculator = new TaxCalculator(activeConfig);
@@ -299,6 +369,11 @@ export const App: React.FC = () => {
     return calculator.calculateAnnualPlan(incomes, inputs);
   }, [activeConfig, incomeMode, fixedIncomeText, monthlyIncomeTexts, deductionForm]);
 
+  const activeDeductionsCount = useMemo(
+    () => countActiveOptionalDeductions(deductionForm),
+    [deductionForm],
+  );
+
   const handleChangeDeductionField = <K extends keyof DeductionFormState>(
     key: K,
     value: DeductionFormState[K],
@@ -308,6 +383,12 @@ export const App: React.FC = () => {
 
   const handleChangeMonthlyIncome = (monthIndex: number, value: string) => {
     setMonthlyIncomeTexts((prev) => prev.map((item, idx) => (idx === monthIndex ? value : item)));
+  };
+
+  const handleEnableVariableModeFromTable = () => {
+    const seed = fixedIncomeText.trim() ? fixedIncomeText : '0';
+    setMonthlyIncomeTexts(Array.from({ length: 12 }, () => seed));
+    setIncomeMode('variable');
   };
 
   const handleCopyJanuaryToAll = () => {
@@ -432,7 +513,7 @@ export const App: React.FC = () => {
     });
     setCustomYears([]);
     setAvailableYears(getAvailableYears());
-    setSelectedYear(2026);
+    setSelectedYear(getDefaultTaxYear());
     setIncomeMode('fixed');
     setFixedIncomeText('15.000.000');
     setMonthlyIncomeTexts(createDefaultMonthlyTexts());
@@ -452,101 +533,228 @@ export const App: React.FC = () => {
     handleChangeDeductionField('deductionMode', mode as DeductionMode);
   };
 
+  const activeTheme: ThemeMode = colorMode === 'light' ? 'light' : 'dark';
+
   return (
-    <div className="app-shell">
-      <HeaderYearSelector
-        availableYears={availableYears}
-        selectedYear={selectedYear}
-        config={activeConfig}
-        onSelectYear={setSelectedYear}
-        onOpenYearModal={() => setShowYearModal(true)}
-      />
+    <Box minH="100vh" bg="bg.canvas" color="text.primary" py={5} pb={14}>
+      <Container maxW="1360px" px={{ base: 4, md: 5 }}>
+        <HeaderYearSelector
+          availableYears={availableYears}
+          selectedYear={selectedYear}
+          config={activeConfig}
+          theme={activeTheme}
+          onToggleTheme={toggleColorMode}
+          onSelectYear={setSelectedYear}
+          onOpenYearModal={() => setShowYearModal(true)}
+        />
 
-      <div className="action-bar">
-        <div className="action-bar-group">
-          <label className="autosave-toggle">
-            <input
-              type="checkbox"
-              checked={autoSave}
+        <Flex justify="space-between" align="center" wrap="wrap" gap={3} mb={4}>
+          <Box
+            bg="bg.surface"
+            borderWidth="1px"
+            borderColor="border.subtle"
+            borderRadius="md"
+            px={3}
+            py={1.5}
+          >
+            <Checkbox
+              size="sm"
+              isChecked={autoSave}
               onChange={(e) => setAutoSave(e.target.checked)}
+              color="text.secondary"
+            >
+              Auto-guardar en navegador (localStorage)
+            </Checkbox>
+          </Box>
+
+          <HStack spacing={2} wrap="wrap">
+            <Button
+              size="sm"
+              bg="bg.surface"
+              borderWidth="1px"
+              borderColor="border.subtle"
+              color="text.primary"
+              _hover={{ borderColor: 'border.accent' }}
+              onClick={handleExportJson}
+            >
+              Exportar JSON
+            </Button>
+            <Button
+              size="sm"
+              bg="bg.surface"
+              borderWidth="1px"
+              borderColor="border.subtle"
+              color="text.primary"
+              _hover={{ borderColor: 'border.accent' }}
+              onClick={handleImportClick}
+            >
+              Importar JSON
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/json,.json"
+              style={{ display: 'none' }}
+              onChange={handleImportFile}
             />
-            Auto-guardar en navegador (localStorage)
-          </label>
-        </div>
+            <Button
+              size="sm"
+              bg="bg.dangerSoft"
+              borderWidth="1px"
+              borderColor="accent.danger"
+              color="accent.danger"
+              _hover={{ opacity: 0.9 }}
+              onClick={handleResetDefaults}
+            >
+              Restablecer
+            </Button>
+          </HStack>
+        </Flex>
 
-        <div className="action-bar-group">
-          <button type="button" className="btn" onClick={handleExportJson}>
-            Exportar JSON
-          </button>
-          <button type="button" className="btn" onClick={handleImportClick}>
-            Importar JSON
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="application/json,.json"
-            style={{ display: 'none' }}
-            onChange={handleImportFile}
-          />
-          <button type="button" className="btn btn-danger-ghost" onClick={handleResetDefaults}>
-            Restablecer
-          </button>
-        </div>
-      </div>
-
-      {statusBanner && (
-        <div className={`alert-banner alert-${statusBanner.type}`} role="status">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span>{statusBanner.text}</span>
-            <button
-              type="button"
-              className="btn btn-sm"
+        {statusBanner && (
+          <Alert
+            status={statusBanner.type}
+            variant="subtle"
+            borderRadius="md"
+            mb={4}
+            borderWidth="1px"
+            borderColor="border.subtle"
+          >
+            <AlertIcon />
+            <Text flex="1" fontSize="sm">
+              {statusBanner.text}
+            </Text>
+            <CloseButton
+              alignSelf="flex-start"
+              position="relative"
+              right={-1}
+              top={-0.5}
               onClick={() => setStatusBanner(null)}
               aria-label="Cerrar notificación"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-      )}
+            />
+          </Alert>
+        )}
 
-      <KpiCards plan={plan} config={activeConfig} />
-
-      <div className="main-grid">
-        <div>
-          <IncomePanel
-            incomeMode={incomeMode}
-            fixedIncomeText={fixedIncomeText}
-            monthlyIncomeTexts={monthlyIncomeTexts}
-            onChangeMode={setIncomeMode}
-            onChangeFixedIncome={setFixedIncomeText}
-            onChangeMonthlyIncome={handleChangeMonthlyIncome}
-            onCopyJanuaryToAll={handleCopyJanuaryToAll}
-            onApplyPreset={handleApplyPreset}
-          />
-
-          <DeductionsPanel
-            form={deductionForm}
-            config={activeConfig}
-            onChange={handleChangeDeductionField}
-          />
-        </div>
-
-        <div>
-          <RegimeComparison plan={plan} onSelectMode={handleSelectRegimeCard} />
-          <MonthlyCashFlowTable plan={plan} />
-        </div>
-      </div>
-
-      {showYearModal && (
-        <YearConfigModal
-          currentYear={selectedYear}
-          currentConfig={activeConfig}
-          onClose={() => setShowYearModal(false)}
-          onRegistered={handleYearRegistered}
+        {/* Paso 1: Salario, Año Fiscal y Ley */}
+        <IncomePanel
+          incomeMode={incomeMode}
+          fixedIncomeText={fixedIncomeText}
+          monthlyIncomeTexts={monthlyIncomeTexts}
+          availableYears={availableYears}
+          selectedYear={selectedYear}
+          config={activeConfig}
+          deductionMode={deductionForm.deductionMode}
+          onChangeMode={setIncomeMode}
+          onChangeFixedIncome={setFixedIncomeText}
+          onChangeMonthlyIncome={handleChangeMonthlyIncome}
+          onCopyJanuaryToAll={handleCopyJanuaryToAll}
+          onApplyPreset={handleApplyPreset}
+          onSelectYear={setSelectedYear}
+          onOpenYearModal={() => setShowYearModal(true)}
+          onChangeDeductionMode={(mode) => handleChangeDeductionField('deductionMode', mode)}
         />
-      )}
-    </div>
+
+        {/* KPIs Ejecutivos */}
+        <KpiCards plan={plan} config={activeConfig} />
+
+        {/* Paso 2: Tabla Prioritaria de Ahorro y Flujo Mensual */}
+        <MonthlyCashFlowTable
+          plan={plan}
+          incomeMode={incomeMode}
+          monthlyIncomeTexts={monthlyIncomeTexts}
+          onChangeMonthlyIncome={handleChangeMonthlyIncome}
+          onEnableVariableModeFromTable={handleEnableVariableModeFromTable}
+        />
+
+        {/* Opciones Avanzadas (Opcional) */}
+        <Flex
+          justify="space-between"
+          align="center"
+          wrap="wrap"
+          gap={3}
+          bg="bg.surface"
+          borderWidth="1px"
+          borderColor="border.subtle"
+          borderRadius="xl"
+          px={4}
+          py={3.5}
+          mb={4}
+          boxShadow="sm"
+        >
+          <Button
+            size="sm"
+            bg="bg.accentSoft"
+            color="accent.primary"
+            borderWidth="1px"
+            borderColor="border.accent"
+            fontWeight="bold"
+            _hover={{ borderColor: 'accent.primary' }}
+            onClick={() => setShowAdvancedOptions((prev) => !prev)}
+            aria-expanded={showAdvancedOptions}
+          >
+            {showAdvancedOptions ? '▾' : '▸'} Opciones Avanzadas (Opcional): 2. Deducciones Ley
+            2277 y Comparativo de Regímenes
+          </Button>
+
+          <HStack spacing={2} wrap="wrap">
+            <Badge
+              px={3}
+              py={1}
+              borderRadius="full"
+              bg="bg.subtle"
+              borderWidth="1px"
+              borderColor="border.subtle"
+              color="text.secondary"
+              textTransform="none"
+              fontSize="xs"
+              fontWeight="semibold"
+            >
+              Régimen: {REGIME_LABELS[plan.selectedMode]}
+            </Badge>
+            <Badge
+              px={3}
+              py={1}
+              borderRadius="full"
+              bg="bg.subtle"
+              borderWidth="1px"
+              borderColor="border.subtle"
+              color="text.secondary"
+              textTransform="none"
+              fontSize="xs"
+              fontWeight="semibold"
+            >
+              {activeDeductionsCount === 0
+                ? '0 deducciones opcionales'
+                : `${activeDeductionsCount} deducción(es) / ajuste(s) activo(s)`}
+            </Badge>
+          </HStack>
+        </Flex>
+
+        <Collapse in={showAdvancedOptions} animateOpacity unmountOnExit>
+          <Grid
+            templateColumns={{ base: '1fr', xl: '440px minmax(0, 1fr)' }}
+            gap={5}
+            alignItems="start"
+          >
+            <DeductionsPanel
+              form={deductionForm}
+              config={activeConfig}
+              onChange={handleChangeDeductionField}
+            />
+            <RegimeComparison plan={plan} onSelectMode={handleSelectRegimeCard} />
+          </Grid>
+        </Collapse>
+
+        {showYearModal && (
+          <YearConfigModal
+            currentYear={selectedYear}
+            currentConfig={activeConfig}
+            onClose={() => setShowYearModal(false)}
+            onRegistered={handleYearRegistered}
+          />
+        )}
+      </Container>
+    </Box>
   );
 };
 

@@ -1,4 +1,18 @@
 import React from 'react';
+import {
+  Box,
+  Button,
+  Flex,
+  FormControl,
+  FormLabel,
+  Heading,
+  HStack,
+  Input,
+  Select,
+  SimpleGrid,
+  Text,
+  VStack,
+} from '@chakra-ui/react';
 import { ARL_RISK_LEVELS } from '../../constants/tax-values';
 import { parseCurrencyInput } from '../../helpers/number';
 import { DeductionMode, TaxYearConfig } from '../../types/tax.types';
@@ -42,29 +56,47 @@ const CurrencyField: React.FC<CurrencyFieldProps> = ({
   placeholder = '0',
 }) => {
   const parsed = parseCurrencyInput(value, { allowZero: true, min: 0 });
+  const hasError = parsed.value === null;
+
   return (
-    <div className="field-group">
-      <div className="field-label-row">
-        <label className="field-label" htmlFor={id}>
+    <FormControl isInvalid={hasError}>
+      <Flex justify="space-between" align="baseline" gap={2} mb={1} wrap="wrap">
+        <FormLabel htmlFor={id} mb={0} fontSize="xs" fontWeight="semibold" color="text.primary">
           {label}
-        </label>
-        <span className="field-hint">{hint}</span>
-      </div>
-      <input
+        </FormLabel>
+        <Text fontSize="xs" color="text.muted">
+          {hint}
+        </Text>
+      </Flex>
+      <Input
         id={id}
-        className={`input-control ${parsed.value === null ? 'has-error' : ''}`}
+        size="sm"
         type="text"
         inputMode="numeric"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
+        bg="bg.input"
+        color="text.primary"
+        borderColor={hasError ? 'accent.danger' : 'border.strong'}
+        _hover={{ borderColor: hasError ? 'accent.danger' : 'border.accent' }}
+        _focusVisible={{
+          borderColor: hasError ? 'accent.danger' : 'accent.primary',
+          boxShadow: 'none',
+        }}
+        borderRadius="md"
       />
-      {parsed.value === null ? (
-        <p className="field-error">{parsed.error ?? 'Valor numérico inválido'}</p>
-      ) : (
-        parsed.value > 0 && <p className="field-preview">{formatCOP(parsed.value)}</p>
+      {hasError && (
+        <Text mt={1} fontSize="xs" color="accent.danger">
+          {parsed.error ?? 'Valor numérico inválido'}
+        </Text>
       )}
-    </div>
+      {parsed.value !== null && parsed.value > 0 && (
+        <Text mt={1} fontSize="xs" color="text.secondary">
+          {formatCOP(parsed.value)}
+        </Text>
+      )}
+    </FormControl>
   );
 };
 
@@ -80,183 +112,263 @@ export const DeductionsPanel: React.FC<DeductionsPanelProps> = ({ form, config, 
 
   const extraDepsCount = dependentsValid ? Math.min(dependentsNum, 4) : 0;
 
+  const prepaidParsed = parseCurrencyInput(form.prepaidHealthText, { allowZero: true, min: 0 });
+  const prepaidHasError = prepaidParsed.value === null;
+  const prepaidMultiplier = form.prepaidHealthPeriod === 'monthly' ? 12 : 1;
+  const prepaidAnnualEquivalent =
+    prepaidParsed.value !== null ? prepaidParsed.value * prepaidMultiplier : 0;
+
   return (
-    <section className="panel">
-      <div className="panel-header">
-        <div>
-          <h2 className="panel-title">2. Deducciones Ley 2277 y Régimen</h2>
-          <p className="panel-desc">
-            Configure sus beneficios tributarios, costos reales, ARL y retenciones practicadas.
-          </p>
-        </div>
-      </div>
+    <Box
+      as="section"
+      bg="bg.surface"
+      borderWidth="1px"
+      borderColor="border.subtle"
+      borderRadius="xl"
+      p={{ base: 4, md: 5 }}
+    >
+      <Box mb={4}>
+        <Heading as="h2" size="sm" color="text.heading" mb={1}>
+          2. Deducciones Ley 2277 y Régimen
+        </Heading>
+        <Text fontSize="xs" color="text.secondary">
+          Configure sus beneficios tributarios, costos reales, ARL y retenciones practicadas.
+        </Text>
+      </Box>
 
-      <div className="field-group">
-        <div className="field-label-row">
-          <label className="field-label" htmlFor="deduction-mode-select">
+      <VStack spacing={4} align="stretch">
+        <FormControl>
+          <FormLabel
+            htmlFor="deduction-mode-select"
+            fontSize="xs"
+            fontWeight="semibold"
+            color="text.primary"
+            mb={1}
+          >
             Modo de Depuración / Régimen
-          </label>
-        </div>
-        <select
-          id="deduction-mode-select"
-          className="select-control"
-          value={form.deductionMode}
-          onChange={(e) => onChange('deductionMode', e.target.value as DeductionMode)}
-        >
-          <option value="auto">Automático (Recomendado - Menor Impuesto)</option>
-          <option value="exempt25">Renta Exenta 25% (Art. 206 - Tope 790 UVT)</option>
-          <option value="actualCosts">Costos y Gastos Reales (Art. 336)</option>
-          <option value="legacyPresumptive">Modo Clásico (25% Presuntivo sin tope)</option>
-        </select>
-      </div>
+          </FormLabel>
+          <Select
+            id="deduction-mode-select"
+            size="sm"
+            value={form.deductionMode}
+            onChange={(e) => onChange('deductionMode', e.target.value as DeductionMode)}
+            bg="bg.input"
+            color="text.primary"
+            borderColor="border.strong"
+            _hover={{ borderColor: 'border.accent' }}
+            _focusVisible={{ borderColor: 'accent.primary', boxShadow: 'none' }}
+            borderRadius="md"
+          >
+            <option value="auto">Automático (Recomendado - Menor Impuesto)</option>
+            <option value="exempt25">Renta Exenta 25% (Art. 206 - Tope 790 UVT)</option>
+            <option value="actualCosts">Costos y Gastos Reales (Art. 336)</option>
+            <option value="legacyPresumptive">Modo Clásico (25% Presuntivo sin tope)</option>
+          </Select>
+        </FormControl>
 
-      <div className="two-col">
-        <div className="field-group">
-          <div className="field-label-row">
-            <label className="field-label" htmlFor="dependents-input">
+        <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={3}>
+          <FormControl isInvalid={!dependentsValid}>
+            <FormLabel
+              htmlFor="dependents-input"
+              fontSize="xs"
+              fontWeight="semibold"
+              color="text.primary"
+              mb={1}
+            >
               Dependientes (0 a 4+)
-            </label>
-          </div>
-          <input
-            id="dependents-input"
-            className={`input-control ${!dependentsValid ? 'has-error' : ''}`}
-            type="number"
-            min={0}
-            max={20}
-            value={form.dependentsCount}
-            onChange={(e) => onChange('dependentsCount', e.target.value)}
+            </FormLabel>
+            <Input
+              id="dependents-input"
+              size="sm"
+              type="number"
+              min={0}
+              max={20}
+              value={form.dependentsCount}
+              onChange={(e) => onChange('dependentsCount', e.target.value)}
+              bg="bg.input"
+              color="text.primary"
+              borderColor={!dependentsValid ? 'accent.danger' : 'border.strong'}
+              _hover={{ borderColor: !dependentsValid ? 'accent.danger' : 'border.accent' }}
+              _focusVisible={{
+                borderColor: !dependentsValid ? 'accent.danger' : 'accent.primary',
+                boxShadow: 'none',
+              }}
+              borderRadius="md"
+            />
+            {!dependentsValid ? (
+              <Text mt={1} fontSize="xs" color="accent.danger">
+                Ingrese un número entero entre 0 y 20.
+              </Text>
+            ) : (
+              <Text mt={1} fontSize="xs" color="text.secondary">
+                {dependentsNum > 0
+                  ? `Art. 387: 10% (tope 384 UVT = ${formatCOP(384 * uvt)}) + ${extraDepsCount}×72 UVT fuera de tope (${formatCOP(extraDepsCount * 72 * uvt)})`
+                  : 'Sin dependientes económicos'}
+              </Text>
+            )}
+          </FormControl>
+
+          <FormControl>
+            <Flex justify="space-between" align="baseline" gap={2} mb={1}>
+              <FormLabel
+                htmlFor="arl-select"
+                fontSize="xs"
+                fontWeight="semibold"
+                color="text.primary"
+                mb={0}
+              >
+                Nivel de Riesgo ARL
+              </FormLabel>
+              <Text fontSize="xs" color="text.muted">
+                Opcional
+              </Text>
+            </Flex>
+            <Select
+              id="arl-select"
+              size="sm"
+              value={form.arlRate}
+              onChange={(e) => onChange('arlRate', e.target.value)}
+              bg="bg.input"
+              color="text.primary"
+              borderColor="border.strong"
+              _hover={{ borderColor: 'border.accent' }}
+              _focusVisible={{ borderColor: 'accent.primary', boxShadow: 'none' }}
+              borderRadius="md"
+            >
+              {ARL_RISK_LEVELS.map((opt) => (
+                <option key={opt.level} value={String(opt.rate)}>
+                  {opt.label}
+                </option>
+              ))}
+            </Select>
+          </FormControl>
+        </SimpleGrid>
+
+        <FormControl isInvalid={prepaidHasError}>
+          <Flex justify="space-between" align="baseline" gap={2} mb={1.5} wrap="wrap">
+            <FormLabel
+              htmlFor="prepaid-health-input"
+              fontSize="xs"
+              fontWeight="semibold"
+              color="text.primary"
+              mb={0}
+            >
+              Medicina Prepagada / Seguros de Salud
+            </FormLabel>
+            <Text fontSize="xs" color="text.muted">
+              Tope 16 UVT/mes ({formatCOP(192 * uvt)}/año)
+            </Text>
+          </Flex>
+          <HStack spacing={2} mb={2}>
+            <Button
+              type="button"
+              size="xs"
+              variant={form.prepaidHealthPeriod === 'annual' ? 'solid' : 'outline'}
+              bg={form.prepaidHealthPeriod === 'annual' ? 'accent.primary' : 'bg.subtle'}
+              color={form.prepaidHealthPeriod === 'annual' ? '#ffffff' : 'text.primary'}
+              borderColor={
+                form.prepaidHealthPeriod === 'annual' ? 'accent.primary' : 'border.subtle'
+              }
+              _hover={{ opacity: 0.9 }}
+              onClick={() => onChange('prepaidHealthPeriod', 'annual')}
+            >
+              Valor Anual
+            </Button>
+            <Button
+              type="button"
+              size="xs"
+              variant={form.prepaidHealthPeriod === 'monthly' ? 'solid' : 'outline'}
+              bg={form.prepaidHealthPeriod === 'monthly' ? 'accent.primary' : 'bg.subtle'}
+              color={form.prepaidHealthPeriod === 'monthly' ? '#ffffff' : 'text.primary'}
+              borderColor={
+                form.prepaidHealthPeriod === 'monthly' ? 'accent.primary' : 'border.subtle'
+              }
+              _hover={{ opacity: 0.9 }}
+              onClick={() => onChange('prepaidHealthPeriod', 'monthly')}
+            >
+              Valor Mensual (×12)
+            </Button>
+          </HStack>
+          <Input
+            id="prepaid-health-input"
+            size="sm"
+            type="text"
+            inputMode="numeric"
+            value={form.prepaidHealthText}
+            onChange={(e) => onChange('prepaidHealthText', e.target.value)}
+            placeholder="0"
+            bg="bg.input"
+            color="text.primary"
+            borderColor={prepaidHasError ? 'accent.danger' : 'border.strong'}
+            _hover={{ borderColor: prepaidHasError ? 'accent.danger' : 'border.accent' }}
+            _focusVisible={{
+              borderColor: prepaidHasError ? 'accent.danger' : 'accent.primary',
+              boxShadow: 'none',
+            }}
+            borderRadius="md"
           />
-          {!dependentsValid ? (
-            <p className="field-error">Ingrese un número entero entre 0 y 20.</p>
-          ) : (
-            <p className="field-preview">
-              {dependentsNum > 0
-                ? `Art. 387: 10% (tope 384 UVT = ${formatCOP(384 * uvt)}) + ${extraDepsCount}×72 UVT fuera de tope (${formatCOP(extraDepsCount * 72 * uvt)})`
-                : 'Sin dependientes económicos'}
-            </p>
+          {prepaidHasError && (
+            <Text mt={1} fontSize="xs" color="accent.danger">
+              {prepaidParsed.error ?? 'Valor numérico inválido'}
+            </Text>
           )}
-        </div>
+          {prepaidParsed.value !== null && prepaidParsed.value > 0 && (
+            <Text mt={1} fontSize="xs" color="text.secondary">
+              Equivalente anual: {formatCOP(prepaidAnnualEquivalent)}
+            </Text>
+          )}
+        </FormControl>
 
-        <div className="field-group">
-          <div className="field-label-row">
-            <label className="field-label" htmlFor="arl-select">
-              Nivel de Riesgo ARL
-            </label>
-            <span className="field-hint">Opcional</span>
-          </div>
-          <select
-            id="arl-select"
-            className="select-control"
-            value={form.arlRate}
-            onChange={(e) => onChange('arlRate', e.target.value)}
-          >
-            {ARL_RISK_LEVELS.map((opt) => (
-              <option key={opt.level} value={String(opt.rate)}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <div className="field-group">
-        <div className="field-label-row">
-          <label className="field-label" htmlFor="prepaid-health-input">
-            Medicina Prepagada / Seguros de Salud
-          </label>
-          <span className="field-hint">Tope 16 UVT/mes ({formatCOP(192 * uvt)}/año)</span>
-        </div>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
-          <button
-            type="button"
-            className={`btn btn-sm ${form.prepaidHealthPeriod === 'annual' ? 'btn-primary' : ''}`}
-            onClick={() => onChange('prepaidHealthPeriod', 'annual')}
-          >
-            Valor Anual
-          </button>
-          <button
-            type="button"
-            className={`btn btn-sm ${form.prepaidHealthPeriod === 'monthly' ? 'btn-primary' : ''}`}
-            onClick={() => onChange('prepaidHealthPeriod', 'monthly')}
-          >
-            Valor Mensual (×12)
-          </button>
-        </div>
-        {(() => {
-          const parsed = parseCurrencyInput(form.prepaidHealthText, { allowZero: true, min: 0 });
-          const multiplier = form.prepaidHealthPeriod === 'monthly' ? 12 : 1;
-          const annualEquivalent = parsed.value !== null ? parsed.value * multiplier : 0;
-          return (
-            <>
-              <input
-                id="prepaid-health-input"
-                className={`input-control ${parsed.value === null ? 'has-error' : ''}`}
-                type="text"
-                inputMode="numeric"
-                value={form.prepaidHealthText}
-                onChange={(e) => onChange('prepaidHealthText', e.target.value)}
-                placeholder="0"
-              />
-              {parsed.value === null && (
-                <p className="field-error">{parsed.error ?? 'Valor numérico inválido'}</p>
-              )}
-              {parsed.value !== null && parsed.value > 0 && (
-                <p className="field-preview">Equivalente anual: {formatCOP(annualEquivalent)}</p>
-              )}
-            </>
-          );
-        })()}
-      </div>
-
-      <CurrencyField
-        id="housing-interest-input"
-        label="Intereses de Vivienda (Anual)"
-        hint={`Tope 100 UVT/mes (${formatCOP(1200 * uvt)}/año)`}
-        value={form.housingInterestText}
-        onChange={(v) => onChange('housingInterestText', v)}
-      />
-
-      <CurrencyField
-        id="voluntary-pension-input"
-        label="Aportes Voluntarios FPV / AFC (Anual)"
-        hint={`Tope 30% ó 3.800 UVT (${formatCOP(3800 * uvt)})`}
-        value={form.voluntaryPensionText}
-        onChange={(v) => onChange('voluntaryPensionText', v)}
-      />
-
-      <CurrencyField
-        id="actual-costs-input"
-        label="Costos y Gastos Procedentes (Anual)"
-        hint="Comparación Opción B (Art. 336)"
-        value={form.actualCostsText}
-        onChange={(v) => onChange('actualCostsText', v)}
-      />
-
-      <CurrencyField
-        id="electronic-invoice-input"
-        label="Compras con Factura Electrónica (Anual)"
-        hint={`Deduce 1% hasta 240 UVT (${formatCOP(240 * uvt)}) fuera de tope`}
-        value={form.electronicInvoicePurchasesText}
-        onChange={(v) => onChange('electronicInvoicePurchasesText', v)}
-      />
-
-      <div className="two-col">
         <CurrencyField
-          id="gmf-input"
-          label="4x1000 / GMF Pagado (Anual)"
-          hint="Deduce 50%"
-          value={form.gmfText}
-          onChange={(v) => onChange('gmfText', v)}
+          id="housing-interest-input"
+          label="Intereses de Vivienda (Anual)"
+          hint={`Tope 100 UVT/mes (${formatCOP(1200 * uvt)}/año)`}
+          value={form.housingInterestText}
+          onChange={(v) => onChange('housingInterestText', v)}
         />
 
         <CurrencyField
-          id="withholdings-input"
-          label="Retención en la Fuente (Anual)"
-          hint="Resta del ahorro final"
-          value={form.withholdingsPaidText}
-          onChange={(v) => onChange('withholdingsPaidText', v)}
+          id="voluntary-pension-input"
+          label="Aportes Voluntarios FPV / AFC (Anual)"
+          hint={`Tope 30% ó 3.800 UVT (${formatCOP(3800 * uvt)})`}
+          value={form.voluntaryPensionText}
+          onChange={(v) => onChange('voluntaryPensionText', v)}
         />
-      </div>
-    </section>
+
+        <CurrencyField
+          id="actual-costs-input"
+          label="Costos y Gastos Procedentes (Anual)"
+          hint="Comparación Opción B (Art. 336)"
+          value={form.actualCostsText}
+          onChange={(v) => onChange('actualCostsText', v)}
+        />
+
+        <CurrencyField
+          id="electronic-invoice-input"
+          label="Compras con Factura Electrónica (Anual)"
+          hint={`Deduce 1% hasta 240 UVT (${formatCOP(240 * uvt)}) fuera de tope`}
+          value={form.electronicInvoicePurchasesText}
+          onChange={(v) => onChange('electronicInvoicePurchasesText', v)}
+        />
+
+        <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={3}>
+          <CurrencyField
+            id="gmf-input"
+            label="4x1000 / GMF Pagado (Anual)"
+            hint="Deduce 50%"
+            value={form.gmfText}
+            onChange={(v) => onChange('gmfText', v)}
+          />
+
+          <CurrencyField
+            id="withholdings-input"
+            label="Retención en la Fuente (Anual)"
+            hint="Resta del ahorro final"
+            value={form.withholdingsPaidText}
+            onChange={(v) => onChange('withholdingsPaidText', v)}
+          />
+        </SimpleGrid>
+      </VStack>
+    </Box>
   );
 };

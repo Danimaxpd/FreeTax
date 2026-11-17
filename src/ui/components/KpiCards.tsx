@@ -1,4 +1,5 @@
 import React from 'react';
+import { Box, Progress, SimpleGrid, Text, VStack } from '@chakra-ui/react';
 import { AnnualTaxPlan, TaxYearConfig } from '../../types/tax.types';
 import { formatCOP } from '../../utils/format';
 
@@ -22,7 +23,9 @@ export const KpiCards: React.FC<KpiCardsProps> = ({ plan, config }) => {
   const maxIbc = config.minimumWage * ibcMaxSmmlv;
   const ibcBaseRate = config.contributions.health.base;
 
-  const hitsMaxCap = activeMonths.some((m) => m.ibc >= maxIbc - 1 && m.grossIncome * ibcBaseRate > maxIbc);
+  const hitsMaxCap = activeMonths.some(
+    (m) => m.ibc >= maxIbc - 1 && m.grossIncome * ibcBaseRate > maxIbc,
+  );
   const hitsMinFloor = activeMonths.some(
     (m) => m.ibc <= config.minimumWage + 1 && m.grossIncome * ibcBaseRate < config.minimumWage,
   );
@@ -42,49 +45,142 @@ export const KpiCards: React.FC<KpiCardsProps> = ({ plan, config }) => {
   const isCapExceeded = regime.totalSubjectToGlobalCap > regime.globalCapLimit + 1;
 
   return (
-    <section className="kpi-grid" aria-label="Indicadores principales">
-      <article className="kpi-card highlight">
-        <span className="kpi-label">Ahorro Mensual Recomendado (Renta)</span>
-        <strong className="kpi-value">{formatCOP(avgMonthlyTaxSave)}</strong>
-        <span className="kpi-sub">
-          Por ahorrar en el año: <strong>{formatCOP(plan.netAnnualTaxToSave)}</strong>
+    <SimpleGrid
+      as="section"
+      aria-label="Indicadores principales"
+      columns={{ base: 1, md: 2, xl: 4 }}
+      spacing={3.5}
+      mb={5}
+    >
+      <VStack
+        as="article"
+        align="stretch"
+        spacing={1.5}
+        bg="bg.accentSoft"
+        borderWidth="1px"
+        borderColor="border.accent"
+        borderRadius="xl"
+        p={4}
+        boxShadow="sm"
+      >
+        <Text
+          fontSize="xs"
+          fontWeight="bold"
+          textTransform="uppercase"
+          letterSpacing="0.03em"
+          color="text.muted"
+        >
+          Ahorro Mensual Recomendado (Renta)
+        </Text>
+        <Text fontSize="2xl" fontWeight="bold" color="accent.primary">
+          {formatCOP(avgMonthlyTaxSave)}
+        </Text>
+        <Text fontSize="xs" color="text.secondary">
+          Por ahorrar en el año:{' '}
+          <Text as="strong" color="text.heading">
+            {formatCOP(plan.netAnnualTaxToSave)}
+          </Text>
           {plan.withholdingsPaidAnnual > 0
             ? ` (Impuesto ${formatCOP(plan.annualTaxTotal)} − Retefuente ${formatCOP(plan.withholdingsPaidAnnual)})`
             : ''}
-        </span>
-      </article>
+        </Text>
+      </VStack>
 
-      <article className="kpi-card">
-        <span className="kpi-label">Pago Mensual PILA (Seguridad Social)</span>
-        <strong className="kpi-value">{formatCOP(avgMonthlyPila)}</strong>
-        <span className="kpi-sub">
+      <VStack
+        as="article"
+        align="stretch"
+        spacing={1.5}
+        bg="bg.surface"
+        borderWidth="1px"
+        borderColor="border.subtle"
+        borderRadius="xl"
+        p={4}
+        boxShadow="sm"
+      >
+        <Text
+          fontSize="xs"
+          fontWeight="bold"
+          textTransform="uppercase"
+          letterSpacing="0.03em"
+          color="text.muted"
+        >
+          Pago Mensual PILA (Seguridad Social)
+        </Text>
+        <Text fontSize="2xl" fontWeight="bold" color="text.heading">
+          {formatCOP(avgMonthlyPila)}
+        </Text>
+        <Text fontSize="xs" color="text.secondary">
           Anual: {formatCOP(plan.annualPilaTotal)} · {ibcStatusLabel}
-        </span>
-      </article>
+        </Text>
+      </VStack>
 
-      <article className="kpi-card">
-        <span className="kpi-label">Ingreso Neto Disponible (Promedio)</span>
-        <strong className="kpi-value">{formatCOP(avgMonthlyNetSpendable)}</strong>
-        <span className="kpi-sub">
+      <VStack
+        as="article"
+        align="stretch"
+        spacing={1.5}
+        bg="bg.surface"
+        borderWidth="1px"
+        borderColor="border.subtle"
+        borderRadius="xl"
+        p={4}
+        boxShadow="sm"
+      >
+        <Text
+          fontSize="xs"
+          fontWeight="bold"
+          textTransform="uppercase"
+          letterSpacing="0.03em"
+          color="text.muted"
+        >
+          Ingreso Neto Disponible (Promedio)
+        </Text>
+        <Text fontSize="2xl" fontWeight="bold" color="accent.success">
+          {formatCOP(avgMonthlyNetSpendable)}
+        </Text>
+        <Text fontSize="xs" color="text.secondary">
           Anual libre tras PILA y ahorro renta: {formatCOP(plan.annualNetSpendableIncome)}
-        </span>
-      </article>
+        </Text>
+      </VStack>
 
-      <article className="kpi-card">
-        <span className="kpi-label">Tasa Efectiva Renta y Límite Ley 2277</span>
-        <strong className="kpi-value">{plan.effectiveTaxRate.toFixed(2)}%</strong>
-        <span className="kpi-sub">
+      <VStack
+        as="article"
+        align="stretch"
+        spacing={1.5}
+        bg="bg.surface"
+        borderWidth="1px"
+        borderColor="border.subtle"
+        borderRadius="xl"
+        p={4}
+        boxShadow="sm"
+      >
+        <Text
+          fontSize="xs"
+          fontWeight="bold"
+          textTransform="uppercase"
+          letterSpacing="0.03em"
+          color="text.muted"
+        >
+          Tasa Efectiva Renta y Límite Ley 2277
+        </Text>
+        <Text fontSize="2xl" fontWeight="bold" color="text.heading">
+          {plan.effectiveTaxRate.toFixed(2)}%
+        </Text>
+        <Text fontSize="xs" color="text.secondary">
           Uso tope 40% / 1.340 UVT: {formatCOP(regime.appliedCappedDeductions)} /{' '}
           {formatCOP(regime.globalCapLimit)} ({globalCapPct.toFixed(0)}%)
           {isCapExceeded ? ' · Tope alcanzado' : ''}
-        </span>
-        <div className="progress-track" aria-hidden="true">
-          <div
-            className={`progress-fill ${isCapExceeded ? 'capped' : ''}`}
-            style={{ width: `${globalCapPct}%` }}
+        </Text>
+        <Box pt={1}>
+          <Progress
+            value={globalCapPct}
+            size="sm"
+            borderRadius="full"
+            bg="bg.subtle"
+            colorScheme={isCapExceeded ? 'orange' : 'blue'}
+            aria-label="Porcentaje de uso del límite global Ley 2277"
           />
-        </div>
-      </article>
-    </section>
+        </Box>
+      </VStack>
+    </SimpleGrid>
   );
 };

@@ -1,4 +1,23 @@
 import React, { useState } from 'react';
+import {
+  Alert,
+  AlertIcon,
+  Button,
+  Flex,
+  FormControl,
+  FormLabel,
+  Input,
+  Modal,
+  ModalBody,
+  ModalCloseButton,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
+  ModalOverlay,
+  SimpleGrid,
+  Text,
+  VStack,
+} from '@chakra-ui/react';
 import { createYearConfigFromBase, registerTaxYearConfig } from '../../constants/tax-values';
 import { parseCurrencyInput } from '../../helpers/number';
 import { TaxYearConfig } from '../../types/tax.types';
@@ -86,6 +105,13 @@ export const YearConfigModal: React.FC<YearConfigModalProps> = ({
       return;
     }
 
+    let normativeRef = 'Configuración personalizada en memoria';
+    if (parsedYear === currentYear) {
+      normativeRef = currentConfig.normativeRef
+        ? `${currentConfig.normativeRef} · Personalizado en memoria`
+        : 'Personalizado en memoria';
+    }
+
     const config = createYearConfigFromBase({
       year: parsedYear,
       uvt: uvtParsed.value,
@@ -94,6 +120,8 @@ export const YearConfigModal: React.FC<YearConfigModalProps> = ({
       pensionRate: pensionPct / 100,
       ibcBase: ibcPct / 100,
       presumptiveCosts: currentConfig.deductions.presumptiveCosts,
+      lawLabel: currentConfig.lawLabel,
+      normativeRef,
     });
 
     registerTaxYearConfig(parsedYear, config);
@@ -102,134 +130,244 @@ export const YearConfigModal: React.FC<YearConfigModalProps> = ({
   };
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="year-modal-title">
-      <div className="modal-card">
-        <div className="modal-header">
-          <h2 id="year-modal-title">Agregar o Personalizar Año Fiscal en Memoria</h2>
-          <button type="button" className="btn btn-sm" onClick={onClose} aria-label="Cerrar">
-            ✕
-          </button>
-        </div>
-
-        <p className="panel-desc" style={{ marginBottom: 14 }}>
-          Registre parámetros para un nuevo año (ej. 2027) o sobrescriba un año existente en esta
-          sesión sin modificar archivos del código.
-        </p>
-
-        {errorMsg && <div className="alert-banner alert-error">{errorMsg}</div>}
+    <Modal isOpen onClose={onClose} size="lg" isCentered>
+      <ModalOverlay bg="blackAlpha.700" backdropFilter="blur(4px)" />
+      <ModalContent
+        bg="bg.surface"
+        color="text.primary"
+        borderWidth="1px"
+        borderColor="border.subtle"
+        borderRadius="xl"
+        mx={4}
+      >
+        <ModalHeader fontSize="md" fontWeight="bold" color="text.heading" pb={2}>
+          Agregar o Personalizar Año Fiscal en Memoria
+        </ModalHeader>
+        <ModalCloseButton aria-label="Cerrar" color="text.secondary" />
 
         <form onSubmit={handleSubmit}>
-          <div className="two-col">
-            <div className="field-group">
-              <div className="field-label-row">
-                <label className="field-label" htmlFor="custom-year">
-                  Año Fiscal
-                </label>
-              </div>
-              <input
-                id="custom-year"
-                className="input-control"
-                type="number"
-                min={2020}
-                max={2100}
-                value={yearInput}
-                onChange={(e) => setYearInput(e.target.value)}
-              />
-            </div>
+          <ModalBody pt={0}>
+            <Text fontSize="xs" color="text.secondary" mb={4}>
+              Registre parámetros para un nuevo año (ej. 2027) o sobrescriba un año existente en
+              esta sesión sin modificar archivos del código.
+            </Text>
 
-            <div className="field-group">
-              <div className="field-label-row">
-                <label className="field-label" htmlFor="custom-ibc">
-                  Base IBC (%)
-                </label>
-                <span className="field-hint">Estándar: 40%</span>
-              </div>
-              <input
-                id="custom-ibc"
-                className="input-control"
-                type="text"
-                value={ibcPctInput}
-                onChange={(e) => setIbcPctInput(e.target.value)}
-              />
-            </div>
-          </div>
+            {errorMsg && (
+              <Alert
+                status="error"
+                variant="subtle"
+                bg="bg.dangerSoft"
+                borderWidth="1px"
+                borderColor="accent.danger"
+                borderRadius="md"
+                mb={4}
+                fontSize="xs"
+              >
+                <AlertIcon color="accent.danger" />
+                <Text color="accent.danger">{errorMsg}</Text>
+              </Alert>
+            )}
 
-          <div className="two-col">
-            <div className="field-group">
-              <div className="field-label-row">
-                <label className="field-label" htmlFor="custom-uvt">
-                  Valor UVT (COP)
-                </label>
-              </div>
-              <input
-                id="custom-uvt"
-                className="input-control"
-                type="text"
-                value={uvtInput}
-                onChange={(e) => setUvtInput(e.target.value)}
-              />
-            </div>
+            <VStack spacing={3} align="stretch">
+              <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={3}>
+                <FormControl>
+                  <FormLabel
+                    htmlFor="custom-year"
+                    fontSize="xs"
+                    fontWeight="semibold"
+                    color="text.primary"
+                    mb={1}
+                  >
+                    Año Fiscal
+                  </FormLabel>
+                  <Input
+                    id="custom-year"
+                    size="sm"
+                    type="number"
+                    min={2020}
+                    max={2100}
+                    value={yearInput}
+                    onChange={(e) => setYearInput(e.target.value)}
+                    bg="bg.input"
+                    color="text.primary"
+                    borderColor="border.strong"
+                    _hover={{ borderColor: 'border.accent' }}
+                    _focusVisible={{ borderColor: 'accent.primary', boxShadow: 'none' }}
+                    borderRadius="md"
+                  />
+                </FormControl>
 
-            <div className="field-group">
-              <div className="field-label-row">
-                <label className="field-label" htmlFor="custom-smmlv">
-                  SMMLV (COP)
-                </label>
-              </div>
-              <input
-                id="custom-smmlv"
-                className="input-control"
-                type="text"
-                value={smmlvInput}
-                onChange={(e) => setSmmlvInput(e.target.value)}
-              />
-            </div>
-          </div>
+                <FormControl>
+                  <Flex justify="space-between" align="baseline" mb={1}>
+                    <FormLabel
+                      htmlFor="custom-ibc"
+                      fontSize="xs"
+                      fontWeight="semibold"
+                      color="text.primary"
+                      mb={0}
+                    >
+                      Base IBC (%)
+                    </FormLabel>
+                    <Text fontSize="xs" color="text.muted">
+                      Estándar: 40%
+                    </Text>
+                  </Flex>
+                  <Input
+                    id="custom-ibc"
+                    size="sm"
+                    type="text"
+                    value={ibcPctInput}
+                    onChange={(e) => setIbcPctInput(e.target.value)}
+                    bg="bg.input"
+                    color="text.primary"
+                    borderColor="border.strong"
+                    _hover={{ borderColor: 'border.accent' }}
+                    _focusVisible={{ borderColor: 'accent.primary', boxShadow: 'none' }}
+                    borderRadius="md"
+                  />
+                </FormControl>
+              </SimpleGrid>
 
-          <div className="two-col">
-            <div className="field-group">
-              <div className="field-label-row">
-                <label className="field-label" htmlFor="custom-health">
-                  Tasa Salud (%)
-                </label>
-                <span className="field-hint">Estándar: 12.5%</span>
-              </div>
-              <input
-                id="custom-health"
-                className="input-control"
-                type="text"
-                value={healthPctInput}
-                onChange={(e) => setHealthPctInput(e.target.value)}
-              />
-            </div>
+              <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={3}>
+                <FormControl>
+                  <FormLabel
+                    htmlFor="custom-uvt"
+                    fontSize="xs"
+                    fontWeight="semibold"
+                    color="text.primary"
+                    mb={1}
+                  >
+                    Valor UVT (COP)
+                  </FormLabel>
+                  <Input
+                    id="custom-uvt"
+                    size="sm"
+                    type="text"
+                    value={uvtInput}
+                    onChange={(e) => setUvtInput(e.target.value)}
+                    bg="bg.input"
+                    color="text.primary"
+                    borderColor="border.strong"
+                    _hover={{ borderColor: 'border.accent' }}
+                    _focusVisible={{ borderColor: 'accent.primary', boxShadow: 'none' }}
+                    borderRadius="md"
+                  />
+                </FormControl>
 
-            <div className="field-group">
-              <div className="field-label-row">
-                <label className="field-label" htmlFor="custom-pension">
-                  Tasa Pensión (%)
-                </label>
-                <span className="field-hint">Estándar: 16%</span>
-              </div>
-              <input
-                id="custom-pension"
-                className="input-control"
-                type="text"
-                value={pensionPctInput}
-                onChange={(e) => setPensionPctInput(e.target.value)}
-              />
-            </div>
-          </div>
+                <FormControl>
+                  <FormLabel
+                    htmlFor="custom-smmlv"
+                    fontSize="xs"
+                    fontWeight="semibold"
+                    color="text.primary"
+                    mb={1}
+                  >
+                    SMMLV (COP)
+                  </FormLabel>
+                  <Input
+                    id="custom-smmlv"
+                    size="sm"
+                    type="text"
+                    value={smmlvInput}
+                    onChange={(e) => setSmmlvInput(e.target.value)}
+                    bg="bg.input"
+                    color="text.primary"
+                    borderColor="border.strong"
+                    _hover={{ borderColor: 'border.accent' }}
+                    _focusVisible={{ borderColor: 'accent.primary', boxShadow: 'none' }}
+                    borderRadius="md"
+                  />
+                </FormControl>
+              </SimpleGrid>
 
-          <div className="modal-actions">
-            <button type="button" className="btn" onClick={onClose}>
+              <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={3}>
+                <FormControl>
+                  <Flex justify="space-between" align="baseline" mb={1}>
+                    <FormLabel
+                      htmlFor="custom-health"
+                      fontSize="xs"
+                      fontWeight="semibold"
+                      color="text.primary"
+                      mb={0}
+                    >
+                      Tasa Salud (%)
+                    </FormLabel>
+                    <Text fontSize="xs" color="text.muted">
+                      Estándar: 12.5%
+                    </Text>
+                  </Flex>
+                  <Input
+                    id="custom-health"
+                    size="sm"
+                    type="text"
+                    value={healthPctInput}
+                    onChange={(e) => setHealthPctInput(e.target.value)}
+                    bg="bg.input"
+                    color="text.primary"
+                    borderColor="border.strong"
+                    _hover={{ borderColor: 'border.accent' }}
+                    _focusVisible={{ borderColor: 'accent.primary', boxShadow: 'none' }}
+                    borderRadius="md"
+                  />
+                </FormControl>
+
+                <FormControl>
+                  <Flex justify="space-between" align="baseline" mb={1}>
+                    <FormLabel
+                      htmlFor="custom-pension"
+                      fontSize="xs"
+                      fontWeight="semibold"
+                      color="text.primary"
+                      mb={0}
+                    >
+                      Tasa Pensión (%)
+                    </FormLabel>
+                    <Text fontSize="xs" color="text.muted">
+                      Estándar: 16%
+                    </Text>
+                  </Flex>
+                  <Input
+                    id="custom-pension"
+                    size="sm"
+                    type="text"
+                    value={pensionPctInput}
+                    onChange={(e) => setPensionPctInput(e.target.value)}
+                    bg="bg.input"
+                    color="text.primary"
+                    borderColor="border.strong"
+                    _hover={{ borderColor: 'border.accent' }}
+                    _focusVisible={{ borderColor: 'accent.primary', boxShadow: 'none' }}
+                    borderRadius="md"
+                  />
+                </FormControl>
+              </SimpleGrid>
+            </VStack>
+          </ModalBody>
+
+          <ModalFooter gap={2}>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              bg="bg.subtle"
+              color="text.primary"
+              borderColor="border.subtle"
+              onClick={onClose}
+            >
               Cancelar
-            </button>
-            <button type="submit" className="btn btn-primary">
+            </Button>
+            <Button
+              type="submit"
+              size="sm"
+              bg="accent.primary"
+              color="#ffffff"
+              _hover={{ opacity: 0.9 }}
+            >
               Guardar Año en Memoria
-            </button>
-          </div>
+            </Button>
+          </ModalFooter>
         </form>
-      </div>
-    </div>
+      </ModalContent>
+    </Modal>
   );
 };
